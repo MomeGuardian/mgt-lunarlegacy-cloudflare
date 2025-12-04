@@ -45,7 +45,9 @@ export async function POST(req: NextRequest) {
 
         await supabase
           .from("users")
-          .update({ pending_reward: newReward })
+          .update({
+            pending_reward: supabase.raw(`pending_reward + ${reward}`),
+          })
           .eq("wallet", buyerData.referrer);
 
       }
