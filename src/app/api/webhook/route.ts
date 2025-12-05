@@ -13,10 +13,7 @@ export async function POST(req: NextRequest) {
       if (!tx.tokenTransfers) continue;
 
       for (const t of tx.tokenTransfers) {
-        const isRelevantTx = t.mint === TOKEN_MINT || 
-        tx.tokenBalanceChanges?.some ( change => change.mint === TOKEN_MINT
-      );
-      if (!isRelevantTx) continue;
+        if (t.mint !== TOKEN_MINT) continue;
 
         const rawAmount = Number(t.tokenAmount || 0);
         if (rawAmount <= 0) continue;
