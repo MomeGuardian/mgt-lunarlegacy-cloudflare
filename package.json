@@ -9,28 +9,22 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@keystonehq/sdk": "0.9.0",
-    "@okxconnect/solana-provider": "1.9.1",
-    "@okxconnect/universal-provider": "1.9.1",
-    "@solana/spl-token": "0.4.14",
+    "next": "16.0.7",
+    "react": "19.2.1",
+    "react-dom": "19.2.1",
     "@solana/wallet-adapter-base": "0.9.27",
     "@solana/wallet-adapter-react": "0.15.39",
     "@solana/wallet-adapter-react-ui": "0.9.39",
-    "@solana/wallet-adapter-tokenpocket": "0.4.23",
     "@solana/wallet-adapter-wallets": "0.19.37",
     "@supabase/supabase-js": "2.86.0",
     "lucide-react": "0.555.0",
-    "next": "16.0.7",
-    "qrcode.react": "4.2.0",
-    "react": "19.2.1",
-    "react-dom": "19.2.1"
+    "@solana/spl-token": "0.4.14",
+    "bs58": "5.0.0"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "4",
     "@types/node": "20",
     "@types/react": "19.2.7",
     "@types/react-dom": "19",
-    "babel-plugin-react-compiler": "1.0.0",
     "eslint": "9",
     "eslint-config-next": "16.0.0",
     "tailwindcss": "4",
