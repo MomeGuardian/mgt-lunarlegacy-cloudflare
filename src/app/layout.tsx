@@ -84,6 +84,16 @@ export default function RootLayout({
             duration: 3000,
           }}
         />
+
+        <Script
+          id="vconsole-script"
+          src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"
+          onLoad={() => {
+            // @ts-ignore
+            new window.VConsole();
+          }}
+        />
+
       </body>
     </html>
   );
