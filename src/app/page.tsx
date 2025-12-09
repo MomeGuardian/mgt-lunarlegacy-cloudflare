@@ -67,9 +67,9 @@ export default function Home() {
   const [claiming, setClaiming] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // ✅ 新增：手动绑定相关状态
-  const [isBinding, setIsBinding] = useState(false); // 控制绑定弹窗
-  const [manualReferrer, setManualReferrer] = useState(""); // 手动输入的地址
+  // ✅ 手动绑定相关状态
+  const [isBinding, setIsBinding] = useState(false); 
+  const [manualReferrer, setManualReferrer] = useState(""); 
 
   // 初始化逻辑
   useEffect(() => {
@@ -95,29 +95,25 @@ export default function Home() {
     }
   }, [connected]);
 
-// 自动绑定逻辑
+  // 自动绑定逻辑
   const bindReferral = useCallback(async () => {
     if (!publicKey || !inviter || !signMessage || bindRef.current) return;
     
-    // ✅ 新增：防止自己绑定自己（这会导致数据库错误）
     if (inviter === publicKey.toBase58()) {
-        console.log("不能绑定自己为上级，跳过自动绑定");
+        console.log("不能绑定自己为上级");
         return;
     }
 
     bindRef.current = true;
     
     try {
-      // 1. 检查是否已经有上级
       const { data } = await supabase.from("users").select("referrer").eq("wallet", publicKey.toBase58()).maybeSingle();
 
-      // 如果已经有上级了，更新本地状态显示出来，然后直接结束
       if (data?.referrer) {
         setInviter(data.referrer);
         return; 
       }
 
-      // 2. 签名并写入数据库
       const message = new TextEncoder().encode(`Bind referral ${inviter} ${Date.now()}`);
       await signMessage(message);
       
@@ -126,33 +122,9 @@ export default function Home() {
           referrer: inviter 
       });
 
-      if (error) throw error; // 如果数据库报错，抛出异常
+      if (error) throw error; 
 
-      // ✅✅✅ 修改点：成功弹窗居中 + 高级样式
       toast.success("自动绑定成功！🤝", {
-          position: "top-center",
-          style: {
-              marginTop: "40vh", // 核心：垂直居中
-              minWidth: '250px',
-              background: 'rgba(17, 24, 39, 0.95)',
-              backdropFilter: 'blur(16px)',
-              color: '#fff',
-              border: '1px solid rgba(34, 197, 94, 0.6)', // 绿色边框
-              padding: '20px 30px',
-              borderRadius: '24px',
-              boxShadow: '0 20px 50px -10px rgba(34, 197, 94, 0.5)',
-              fontWeight: 'bold',
-              fontSize: '18px',
-              textAlign: 'center',
-          },
-          duration: 3000
-      });
-
-    } catch (err) {
-      console.error("自动绑定失败详情:", err);
-      
-      // ✅✅✅ 修改点：失败弹窗居中 + 红色警示样式
-      toast.error("自动绑定失败，请重试 ❌", {
           position: "top-center",
           style: {
               marginTop: "40vh",
@@ -160,58 +132,35 @@ export default function Home() {
               background: 'rgba(17, 24, 39, 0.95)',
               backdropFilter: 'blur(16px)',
               color: '#fff',
-              border: '1px solid rgba(239, 68, 68, 0.6)', // 红色边框
+              border: '1px solid rgba(34, 197, 94, 0.6)', 
               padding: '20px 30px',
               borderRadius: '24px',
-              boxShadow: '0 20px 50px -10px rgba(239, 68, 68, 0.5)', // 红色光晕
               fontWeight: 'bold',
-              fontSize: '18px',
-              textAlign: 'center',
           },
-          duration: 4000
+          duration: 3000
       });
-      
+
+    } catch (err) {
+      console.error("自动绑定失败详情:", err);
       bindRef.current = false;
     }
   }, [publicKey, inviter, signMessage]);
+
   useEffect(() => {
     if (connected && publicKey) bindReferral();
   }, [connected, publicKey, bindReferral]);
 
+  // 手动绑定逻辑
   const handleManualBind = async () => {
     if (!publicKey || !signMessage) return;
     
     if (!manualReferrer || manualReferrer.length < 32) {
-        toast.error("请输入有效的 Solana 地址", {
-            position: "top-center",
-            style: {
-                marginTop: "40vh",
-                background: 'rgba(17, 24, 39, 0.95)',
-                color: '#fff',
-                border: '1px solid rgba(239, 68, 68, 0.5)',
-                padding: '16px 24px',
-                borderRadius: '50px',
-                boxShadow: '0 10px 30px -10px rgba(239, 68, 68, 0.5)',
-                fontWeight: 'bold',
-            }
-        });
+        toast.error("请输入有效的 Solana 地址");
         return;
     }
 
     if (manualReferrer === publicKey.toBase58()) {
-        toast.error("不能绑定自己为上级 ❌", {
-            position: "top-center",
-            style: {
-                marginTop: "40vh",
-                background: 'rgba(17, 24, 39, 0.95)',
-                color: '#fff',
-                border: '1px solid rgba(239, 68, 68, 0.5)',
-                padding: '16px 24px',
-                borderRadius: '50px',
-                boxShadow: '0 10px 30px -10px rgba(239, 68, 68, 0.5)',
-                fontWeight: 'bold',
-            }
-        });
+        toast.error("不能绑定自己为上级 ❌");
         return;
     }
 
@@ -229,46 +178,11 @@ export default function Home() {
         setInviter(manualReferrer);
         setIsBinding(false);
 
-        toast.success("绑定上级成功！🎉", {
-            position: "top-center",
-            style: {
-                marginTop: "40vh",
-                minWidth: '250px',
-                background: 'rgba(17, 24, 39, 0.95)',
-                backdropFilter: 'blur(16px)',
-                color: '#fff',
-                border: '1px solid rgba(168, 85, 247, 0.6)',
-                padding: '20px 30px',
-                borderRadius: '24px',
-                boxShadow: '0 20px 50px -10px rgba(168, 85, 247, 0.5)',
-                fontWeight: 'bold',
-                fontSize: '18px',
-                textAlign: 'center',
-            },
-            duration: 3000,
-        });
+        toast.success("绑定上级成功！🎉");
 
     } catch (err) {
         console.error("手动绑定失败", err);
-        
-        toast.error("绑定失败，请重试 😭", {
-            position: "top-center",
-            style: {
-                marginTop: "40vh",
-                minWidth: '250px',
-                background: 'rgba(17, 24, 39, 0.95)',
-                backdropFilter: 'blur(16px)',
-                color: '#fff',
-                border: '1px solid rgba(239, 68, 68, 0.6)',
-                padding: '20px 30px',
-                borderRadius: '24px',
-                boxShadow: '0 20px 50px -10px rgba(239, 68, 68, 0.5)',
-                fontWeight: 'bold',
-                fontSize: '18px',
-                textAlign: 'center',
-            },
-            duration: 3000,
-        });
+        toast.error("绑定失败，请重试 😭");
     }
   };
 
@@ -313,29 +227,14 @@ export default function Home() {
     setClaiming(false);
   };
   
-  const launchJupiter = () => {
-    if (window.Jupiter) {
-      window.Jupiter.init({
-        displayMode: "modal",
-        endpoint: "https://mainnet.helius-rpc.com/?api-key=ee54db44-f348-4700-b17d-1bc7f33a605b",
-        strictTokenList: false,
-        formProps: {
-          fixedOutputMint: true,
-          initialOutputMint: "59eXaVJNG441QW54NTmpeDpXEzkuaRjSLm8M6N4Gpump",
-          initialInputMint: "So11111111111111111111111111111111111111112",
-        },
-        styles: {
-            theme: 'dark',
-            container: { background: '#1f2937', color: '#fff' },
-        },
-      });
-    } else {
-      toast.error("交易插件加载中，请稍后再试...");
-    }
-  };
-
   const myLink = publicKey && baseUrl ? `${baseUrl}?ref=${publicKey.toBase58()}` : "";
   const contractAddress = "59eXaVJNG441QW54NTmpeDpXEzkuaRjSLm8M6N4Gpump"; 
+
+  // ✅ 核心修改：官方直达跳转函数 (不会被拦截)
+  const openOkxDex = () => {
+    const url = `https://web3.okx.com/zh-hans/dex-swap?chain=solana,solana&token=Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB,59eXaVJNG441QW54NTmpeDpXEzkuaRjSLm8M6N4Gpump`;
+    window.open(url, '_blank');
+  };
 
   if (loading) {
     return (
@@ -356,27 +255,59 @@ export default function Home() {
       >
         <Navbar />
 
+    {/* 🌟 优化版：连接成功弹窗 */}
         <AnimatePresence>
           {showWelcome && (
             <motion.div
               initial={{ opacity: 0, y: -30, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -30, scale: 0.9 }}
-              className="fixed top-28 left-1/2 -translate-x-1/2 z-[60] w-full max-w-sm px-4"
+              // 调整位置到顶部偏下，更自然
+              className="fixed top-32 left-1/2 -translate-x-1/2 z-[60] w-auto"
             >
-              <div className="bg-gray-800/95 backdrop-blur-md rounded-2xl p-5 border border-green-500/40 text-center shadow-2xl flex flex-col items-center">
-                <h3 className="text-lg font-bold text-green-400 flex items-center justify-center gap-2 mb-2">
-                  <span className="text-2xl">🎊</span> 连接成功!
-                </h3>
-                <p className="text-gray-300 text-sm font-mono bg-black/30 px-4 py-1.5 rounded-full">
-                  {publicKey?.toBase58()}
-                </p>
+              <div className="flex flex-col items-center justify-center gap-3 bg-[#0a0a0a]/90 backdrop-blur-xl border border-green-500/30 p-6 rounded-[32px] shadow-[0_0_40px_-10px_rgba(34,197,94,0.4)]">
+                
+                {/* 标题区域 */}
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl animate-bounce">🎉</span>
+                  <h3 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">
+                    连接成功!
+                  </h3>
+                </div>
+
+                {/* 地址显示区 (核心优化：截断显示 + 点击复制) */}
+                <button 
+                  onClick={() => {
+                    if(publicKey) {
+                        navigator.clipboard.writeText(publicKey.toBase58());
+                        toast.success("地址已复制到剪贴板 ✅");
+                    }
+                  }}
+                  className="flex items-center gap-3 bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 px-5 py-2.5 rounded-full transition-all group cursor-pointer"
+                >
+                  {/* 在线状态点 */}
+                  <div className="relative flex items-center justify-center">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                  </div>
+
+                  {/* 适配后的地址：前6位...后6位 */}
+                  <span className="text-gray-200 font-mono text-base font-bold tracking-wider">
+                    {publicKey ? `${publicKey.toBase58().slice(0, 6)}...${publicKey.toBase58().slice(-6)}` : ''}
+                  </span>
+
+                  {/* 复制图标 (Hover时变亮) */}
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500 group-hover:text-green-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
 
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
+        {/* 绑定弹窗 */}
         <AnimatePresence>
             {isBinding && (
                 <motion.div
@@ -435,25 +366,28 @@ export default function Home() {
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(contractAddress);
-                    toast.success("CA 已复制，去 Jupiter 冲！", {
-                      position: "top-center",
-                      style: {
-                        marginTop: "40vh",
-                        minWidth: '260px',
-                        background: 'rgba(17, 24, 39, 0.95)',
-                        backdropFilter: 'blur(16px)',
-                        color: '#fff',
-                        border: '1px solid rgba(34, 197, 94, 0.6)',
-                        padding: '20px 30px',
-                        borderRadius: '24px',
-                        boxShadow: '0 20px 50px -10px rgba(34, 197, 94, 0.4)',
-                        fontWeight: 'bold',
-                        fontSize: '18px',
-                        textAlign: 'center',
-                      },
-                      icon: '💊',
-                      duration: 2000,
-                    });
+                    toast.success("CA 已复制，去 OKX 冲！", {
+                    position: "top-center", // 1. 基础位置设为顶部居中
+                    duration: 2000,
+                    icon: '💊',
+                    style: {
+                      // 2. 核心：通过 marginTop 把弹窗推到屏幕正中间 (40vh = 视口高度的40%)
+                      marginTop: "40vh", 
+                      
+                      // 3. 样式美化
+                      minWidth: '260px',
+                      background: 'rgba(17, 24, 39, 0.95)', // 深色背景
+                      backdropFilter: 'blur(16px)',         // 毛玻璃
+                      color: '#fff',                        // 白字
+                      border: '1px solid rgba(34, 197, 94, 0.6)', // 绿色边框
+                      padding: '20px 30px',
+                      borderRadius: '24px',
+                      boxShadow: '0 0 50px -10px rgba(34, 197, 94, 0.5)', // 绿色光晕
+                      fontWeight: 'bold',
+                      fontSize: '18px',
+                      textAlign: 'center',
+                    },
+                  });
                   }}
                   className="flex items-center space-x-2 bg-gray-800/50 hover:bg-gray-800 border border-gray-600 rounded-full px-4 py-1.5 transition-all active:scale-95 group"
                 >
@@ -477,15 +411,16 @@ export default function Home() {
             <motion.div variants={containerVariants} className="max-w-5xl mx-auto space-y-6 md:space-y-8">
               
               <div className="mt-6 flex justify-center pb-4">
+                {/* ✅ 修改后的按钮：调用 openOkxDex 跳转 */}
                 <button
-                    onClick={launchJupiter}
-                    className="relative group cursor-pointer"
+                  onClick={openOkxDex}
+                  className="relative group cursor-pointer"
                 >
                     <div className="absolute -inset-1 bg-gradient-to-r from-green-400 to-blue-500 rounded-full blur opacity-75 group-hover:opacity-100 transition duration-200 animate-pulse"></div>
                     <div className="relative px-8 py-3 bg-black rounded-full leading-none flex items-center space-x-3">
                     <span className="text-2xl">💊</span>
                     <span className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-400 group-hover:text-white transition-colors">
-                        立即购买 $MGT
+                        去 OKX 购买 $MGT
                     </span>
                     </div>
                 </button>
@@ -501,17 +436,15 @@ export default function Home() {
                 variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { delay: 0.8, duration: 0.6 } } }}
                 initial="hidden" 
                 animate="visible"
-                className="bg-gray-900/95 md:bg-gray-900/60 md:backdrop-blur-xl border border-purple-500/30 shadow-none md:shadow-[0_0_20px_rgba(168,85,247,0.1)]"
+                className="bg-gray-900/95 md:bg-gray-900/60 md:backdrop-blur-xl border border-purple-500/30 shadow-none md:shadow-[0_0_20px_rgba(168,85,247,0.1)] rounded-2xl"
               >
-                <div className="absolute top-0 right-0 w-64 h-64 bg-purple-600/10 rounded-full blur-3xl -z-10"></div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 items-center divide-y md:divide-y-0 md:divide-x divide-gray-700/50">
                   
-                  {/* ✅✅✅ 上级信息栏 (带手动绑定按钮) ✅✅✅ */}
-                  <div className="flex flex-col items-center justify-center p-2">
+                  {/* 上级信息栏 */}
+                  <div className="flex flex-col items-center justify-center p-4">
                     <p className="text-gray-400 text-xs md:text-sm mb-2">我的指挥官</p>
                     
                     {inviter ? (
-                        // 如果有上级，显示地址
                         <div className="flex items-center space-x-2 bg-black/30 px-3 py-1.5 md:px-4 md:py-2 rounded-full border border-gray-700">
                             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
                             <p className="text-xs md:text-sm font-mono font-bold text-gray-200">
@@ -519,7 +452,6 @@ export default function Home() {
                             </p>
                         </div>
                     ) : (
-                        // 如果没上级，显示“绑定按钮”
                         <button 
                             onClick={() => setIsBinding(true)}
                             className="flex items-center space-x-2 bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/50 px-4 py-1.5 rounded-full transition-all group"
@@ -533,37 +465,39 @@ export default function Home() {
                   </div>
 
                   {/* 邀请数 */}
-                  <div className="flex flex-col items-center justify-center p-2 pt-6 md:pt-2">
+                  <div className="flex flex-col items-center justify-center p-4">
                     <p className="text-gray-400 text-xs md:text-sm mb-1">我的直推人数</p>
                     <p className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400">{myRefs}</p>
                   </div>
+                  
                   {/* 复制链接 */}
-                  <div className="flex flex-col items-center justify-center p-2 pt-6 md:pt-2 w-full">
+                  <div className="flex flex-col items-center justify-center p-4 w-full">
                     <p className="text-gray-400 text-xs md:text-sm mb-3">专属招募令</p>
-                    <div className="w-full relative">
-                      <input type="text" readOnly value={myLink || "连接钱包生成..."} className="w-full bg-black/40 border border-gray-700 text-gray-500 text-xs rounded-lg px-3 py-2 mb-3 outline-none text-center" />
-                    </div>
                     <button
                         onClick={() => {
-                          navigator.clipboard.writeText(myLink);
-                          toast.success("已复制，去推广吧！", {
-                            position: "top-center",
+                          const shareText = `🔥 $MGT 直推军团，5% 交易税自动返现！\n\n👇 复制下方链接 👇\n${myLink}\n\n⚠️ 重要操作指南：\n1. 复制上面的链接\n2. 打开 OKX Web3 钱包 或 Phantom 钱包 App\n3. 点击底部的【发现】或【浏览器】\n4. 在顶部地址栏粘贴链接并访问\n\n千万不要直接在微信或浏览器打开，否则无法连接钱包！`;
+                          navigator.clipboard.writeText(shareText);
+                          toast.success("推广文案已复制！快去分享吧！", {
+                            position: "top-center", // 1. 基础位置设为顶部居中
+                            duration: 2000,
+                            icon: '🚀',
                             style: {
+                              // 2. 核心：推到屏幕正中间
                               marginTop: "40vh",
-                              minWidth: '260px',
+                              
+                              // 3. 样式美化 (粉紫色主题)
+                              minWidth: '280px',
                               background: 'rgba(17, 24, 39, 0.95)',
                               backdropFilter: 'blur(16px)',
                               color: '#fff',
-                              border: '1px solid rgba(236, 72, 153, 0.6)',
+                              border: '1px solid rgba(236, 72, 153, 0.6)', // 粉色边框
                               padding: '20px 30px',
                               borderRadius: '24px',
-                              boxShadow: '0 20px 50px -10px rgba(236, 72, 153, 0.5)',
+                              boxShadow: '0 0 50px -10px rgba(236, 72, 153, 0.5)', // 粉色光晕
                               fontWeight: 'bold',
                               fontSize: '18px',
                               textAlign: 'center',
                             },
-                            icon: '🚀', 
-                            duration: 2000,
                           });
                         }}
                         disabled={!myLink} 
@@ -637,7 +571,8 @@ export default function Home() {
           )}
         </div>
 
-        <footer className="w-full py-6 text-center text-gray-600 text-xs md:text-sm font-mono border-t border-white/5 bg-black/40 backdrop-blur-sm">
+        {/* Footer */}
+        <footer className="w-full py-6 text-center text-gray-600 text-xs md:text-sm font-mono border-t border-white/5 bg-black/40 backdrop-blur-sm z-10">
             <div className="flex flex-col items-center justify-center space-y-1">
             <p className="hover:text-gray-400 transition-colors cursor-default">
                 MGTLunarLegacy - Decentralized Platform | Built on Sol
@@ -647,6 +582,7 @@ export default function Home() {
             </p>
             </div>
         </footer>
+
       </motion.div>
     </AnimatePresence>
   );
