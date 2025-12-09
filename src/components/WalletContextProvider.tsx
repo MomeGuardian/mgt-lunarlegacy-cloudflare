@@ -7,7 +7,7 @@ import { clusterApiUrl } from "@solana/web3.js";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
 const WalletContextProvider: FC<{ children: ReactNode }> = ({ children }) => {
-  const endpoint = useMemo(() => clusterApiUrl("mainnet-beta"), []);
+  const endpoint = "https://mainnet.helius-rpc.com/?api-key=f6ac37ee-435b-440c-9114-87bf7783319b";
   const wallets = useMemo(() => [], []);
 
   return (
@@ -20,4 +20,3 @@ const WalletContextProvider: FC<{ children: ReactNode }> = ({ children }) => {
 };
 
 export default WalletContextProvider;
-
