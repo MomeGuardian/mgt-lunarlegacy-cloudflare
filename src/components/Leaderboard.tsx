@@ -62,9 +62,20 @@ export default function Leaderboard() {
           // 样式处理
           let rankBadge = <span className="font-mono font-bold text-gray-500">#{index + 1}</span>;
           let rowClass = "bg-[#16171D] border-gray-800/30";
-          if (index === 0) { rankBadge = "🥇"; rowClass = "bg-gradient-to-r from-yellow-900/20 to-[#16171D] border-yellow-500/30"; }
-          else if (index === 1) { rankBadge = "🥈"; rowClass = "bg-gradient-to-r from-gray-700/20 to-[#16171D] border-gray-400/30"; }
-          else if (index === 2) { rankBadge = "🥉"; rowClass = "bg-gradient-to-r from-orange-900/20 to-[#16171D] border-orange-500/30"; }
+
+          // 👇 核心修改：给 emoji 加上 <span> 标签，这样它就变成了 Element，类型就一致了
+          if (index === 0) { 
+            rankBadge = <span className="text-2xl">🥇</span>; 
+            rowClass = "bg-gradient-to-r from-yellow-900/20 to-[#16171D] border-yellow-500/30"; 
+          }
+          else if (index === 1) { 
+            rankBadge = <span className="text-xl">🥈</span>; 
+            rowClass = "bg-gradient-to-r from-gray-700/20 to-[#16171D] border-gray-400/30"; 
+          }
+          else if (index === 2) { 
+            rankBadge = <span className="text-xl">🥉</span>; 
+            rowClass = "bg-gradient-to-r from-orange-900/20 to-[#16171D] border-orange-500/30"; 
+          }
 
           return (
             <motion.div
