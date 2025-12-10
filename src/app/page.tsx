@@ -450,7 +450,7 @@ export default function Home() {
     }
   }, [publicKey, connected]);
 
-  const claimReward = async () => {
+const claimReward = async () => {
     if (!publicKey) return;
     setClaiming(true);
     try {
@@ -460,14 +460,17 @@ export default function Home() {
         body: JSON.stringify({ wallet: publicKey.toBase58() }),
       });
       const data = await res.json();
+      
       if (res.ok) {
-        toast.success("Success!");
+        toast.success("Success! 提现成功，请检查钱包余额。");
         setPendingReward(0);
       } else {
-        toast.error("Failed: " + (data.message || data));
+        const errorMessage = data.error || data.message || JSON.stringify(data);
+        toast.error("提现失败: " + errorMessage);
       }
     } catch (err) {
-      toast.error("Network Error");
+      console.error("提现网络错误:", err);
+      toast.error("网络连接失败，请稍后重试");
     }
     setClaiming(false);
   };
