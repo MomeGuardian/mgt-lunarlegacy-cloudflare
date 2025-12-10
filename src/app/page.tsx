@@ -418,56 +418,90 @@ export default function Home() {
     }
   };
 
+// 1. 加载用户数据 (修复版：解决变量重名冲突)
   useEffect(() => {
     if (connected && publicKey) {
       const loadData = async () => {
         try {
-          // 3. 获取待领收益
-          const { data } = await supabase
+          // A. 获取上级
+          const { data: refData } = await supabase // 👈 改名 refData，防止冲突
             .from("users")
-            .select("pending_reward, team_volume") // 👈 记得把 team_volume 也选出来
+            .select("referrer")
+            .eq("wallet", publicKey.toBase58())
+            .maybeSingle();
+            
+          if (refData?.referrer) setInviter(refData.referrer);
+
+          // B. 获取直推人数
+          const { count } = await supabase
+            .from("users")
+            .select("*", { count: "exact", head: true })
+            .eq("referrer", publicKey.toBase58());
+          setMyRefs(count || 0);
+
+          // C. 获取收益和业绩 (核心修改：一次查询两个字段)
+          const { data: financeData } = await supabase // 👈 改名 financeData，彻底解决报错
+            .from("users")
+            .select("pending_reward, team_volume") 
             .eq("wallet", publicKey.toBase58())
             .single();
-            
-          setPendingReward(data?.pending_reward || 0);
           
-          // ✅ 核心修改：读取数据库里的真实业绩 (USDT)
-          setTeamVolume(data?.team_volume || 0);
+          setPendingReward(financeData?.pending_reward || 0);
+          setTeamVolume(financeData?.team_volume || 0); 
+          
+        } catch (error) {
+          console.error("加载数据失败:", error);
+        }
+      };
+      loadData();
+    } else {
+        // 未连接时清空
+        setMyRefs(0);
+        setPendingReward(0);
+        setTeamVolume(0);
+    }
+  }, [publicKey, connected]);
 
-          // ⚡️ 实时监听数据变化 (Realtime)
-    useEffect(() => {
-      if (!connected || !publicKey) return;
-    
-      // 创建订阅通道
-      const channel = supabase
-        .channel('realtime_users')
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',           // 监听更新事件
-            schema: 'public',
-            table: 'users',
-            filter: `wallet=eq.${publicKey.toBase58()}` // 只监听自己的钱包变化
-          },
-          (payload) => {
-            // 当数据库更新时，立即更新前端显示的数字
-            const newUser = payload.new as any;
-            if (newUser) {
-              console.log("⚡️ 数据实时更新:", newUser);
-              setPendingReward(newUser.pending_reward || 0);
-              setTeamVolume(newUser.team_volume || 0); // ✅ 业绩也会实时跳动
-              toast("🚀 恭喜！您的团队产生了新业绩！", {
-                  icon: '💰',
-                  style: {
-                      background: '#16171D',
-                      color: '#fff',
-                      border: '1px solid #22c55e'
-                  }
-              });
-            }
+
+  // 2. ⚡️ 实时监听数据变化 (Realtime Listener)
+  useEffect(() => {
+    if (!connected || !publicKey) return;
+
+    console.log("正在建立实时监听通道...");
+
+    const channel = supabase
+      .channel('realtime_users')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'users',
+          filter: `wallet=eq.${publicKey.toBase58()}` // 只监听自己
+        },
+        (payload) => {
+          const newUser = payload.new as any;
+          if (newUser) {
+            console.log("⚡️ 数据实时更新:", newUser);
+            
+            // 实时更新前端状态
+            setPendingReward(newUser.pending_reward || 0);
+            setTeamVolume(newUser.team_volume || 0);
+            
+            // 只有当业绩真的增加时才弹窗 (防止普通更新也弹窗)
+            // 这里简单处理，只要有推送到更新就提示
+            toast("🚀 团队业绩刷新！", {
+                icon: '💰',
+                style: {
+                    background: '#16171D',
+                    color: '#fff',
+                    border: '1px solid #22c55e'
+                }
+            });
           }
-        )
-        .subscribe();
+        }
+      )
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
