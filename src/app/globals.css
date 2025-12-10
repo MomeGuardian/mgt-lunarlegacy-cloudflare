@@ -1,0 +1,265 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(147, 51, 234, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(236, 72, 153, 0.5); }
+}
+.mgt-glow { 
+  animation: glow 3s ease-in-out infinite;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden; 
+  -webkit-font-smoothing: antialiased;
+}
+
+.grok-starry-bg {
+  background-color: #030712 !important;
+  min-height: 100vh;
+  position: relative;
+  z-index: 0;
+}
+
+@media (min-width: 768px) {
+  .grok-starry-bg {
+    background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%) !important;
+    background-attachment: fixed !important; 
+    background-size: cover !important;
+  }
+
+  .grok-starry-bg::before {
+    content: '';
+    position: fixed !important;
+    inset: 0;
+    width: 100%;
+    height: 100vh;
+    background-image: 
+      radial-gradient(1px 1px at 10px 10px, #ffffff 100%, transparent),
+      radial-gradient(1px 1px at 40px 150px, #ffffff 100%, transparent),
+      radial-gradient(1px 1px at 80px 20px, #ffffff 100%, transparent),
+      radial-gradient(1px 1px at 120px 250px, #ffffff 100%, transparent),
+      radial-gradient(1px 1px at 160px 80px, #ffffff 100%, transparent),
+      radial-gradient(1px 1px at 200px 300px, #ffffff 100%, transparent);
+    background-size: 600px 600px;
+    z-index: -2;
+    opacity: 0.6;
+    animation: star-drift-slow 120s linear infinite;
+    pointer-events: none;
+  }
+
+  .grok-starry-bg::after {
+    content: '';
+    position: fixed !important;
+    inset: 0;
+    width: 100%;
+    height: 100vh;
+    background-image: 
+      radial-gradient(2px 2px at 50px 100px, #ffffff 100%, transparent),
+      radial-gradient(1.5px 1.5px at 150px 350px, #ffffff 100%, transparent),
+      radial-gradient(2px 2px at 250px 50px, #ffffff 100%, transparent);
+    background-size: 700px 700px;
+    z-index: -1;
+    opacity: 0.8;
+    animation: 
+      star-drift-fast 80s linear infinite,
+      star-twinkle-bright 4s ease-in-out infinite alternate;
+    pointer-events: none;
+  }
+}
+
+@keyframes star-drift-slow {
+  from { transform: translateY(0); }
+  to { transform: translateY(-600px); }
+}
+
+@keyframes star-drift-fast {
+  from { transform: translateY(0); }
+  to { transform: translateY(-700px); }
+}
+
+@keyframes star-twinkle-bright {
+  0% { opacity: 0.4; transform: scale(0.9); }
+  100% { opacity: 1; transform: scale(1.1); filter: brightness(1.5); }
+}
+
+/* ========================================================================
+   💎 钱包适配器美化 (Wallet Adapter Overrides) - 高端黑金磨砂风格
+   ======================================================================== */
+
+/* 1. 弹窗背景遮罩：加重模糊，更有质感 */
+.wallet-adapter-modal-overlay {
+  background: rgba(0, 0, 0, 0.7) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  z-index: 9998 !important;
+}
+
+/* 2. 核心弹窗卡片：去灰底，改黑透，加光晕 */
+.wallet-adapter-modal-wrapper {
+  background: rgba(10, 10, 10, 0.95) !important; /* 深黑背景 */
+  border: 1px solid rgba(147, 51, 234, 0.3) !important; /* 紫色微边框 */
+  box-shadow: 0 0 40px -10px rgba(147, 51, 234, 0.3) !important; /* 紫色霓虹光晕 */
+  border-radius: 24px !important;
+  padding: 20px !important;
+  width: 360px !important;
+  font-family: var(--font-sans), sans-serif !important;
+  z-index: 9999 !important;
+}
+
+/* 3. 标题文字："Connect a wallet..." */
+.wallet-adapter-modal-title {
+  color: #fff !important;
+  font-size: 1.25rem !important; /* 20px */
+  font-weight: 800 !important;
+  text-align: center !important;
+  margin-bottom: 24px !important;
+  letter-spacing: -0.02em !important;
+  background: linear-gradient(to right, #fff, #a8a8a8) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* 4. 钱包列表容器 */
+.wallet-adapter-modal-list {
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important; /* 按钮之间的间距 */
+}
+
+/* 5. 具体的钱包按钮 (OKX, Phantom...) */
+.wallet-adapter-button {
+  background: rgba(255, 255, 255, 0.05) !important; /* 默认微亮背景 */
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  color: #e5e7eb !important; /* 灰白文字 */
+  font-weight: 600 !important;
+  font-size: 16px !important;
+  height: 56px !important; /* 按钮增高 */
+  border-radius: 16px !important;
+  padding: 0 20px !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  justify-content: flex-start !important; /* 图标文字靠左对齐 */
+}
+
+/* 6. 按钮悬停效果 (鼠标放上去的时候) */
+.wallet-adapter-button:not([disabled]):hover {
+  background: rgba(147, 51, 234, 0.15) !important; /* 紫色高亮背景 */
+  border-color: rgba(147, 51, 234, 0.5) !important; /* 紫色边框 */
+  color: #fff !important;
+  transform: translateY(-2px) !important; /* 微微上浮 */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* 7. 钱包图标 */
+.wallet-adapter-button-icon {
+  width: 32px !important;
+  height: 32px !important;
+  margin-right: 16px !important;
+}
+
+/* 8. 按钮里的 "Detected" 标签 (针对 OKX) */
+.wallet-adapter-modal-list .wallet-adapter-button span {
+  font-size: 12px !important;
+  opacity: 0.6 !important;
+  margin-left: auto !important; /* 推到最右边 */
+}
+
+/* 9. 关闭按钮 (右上角的 X) */
+.wallet-adapter-modal-button-close {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 50% !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 8px !important;
+  top: 16px !important;
+  right: 16px !important;
+  transition: all 0.2s !important;
+}
+
+.wallet-adapter-modal-button-close:hover {
+  background: rgba(239, 68, 68, 0.8) !important; /* 悬停变红 */
+  transform: rotate(90deg) !important;
+}
+
+.wallet-adapter-modal-button-close svg {
+  fill: #fff !important;
+  width: 14px !important;
+  height: 14px !important;
+}
+
+/* 10. 手机端底部折叠按钮 "Less options" */
+.wallet-adapter-modal-collapse-button svg {
+    display: none !important; /* 隐藏默认的难看箭头 */
+}
+.wallet-adapter-modal-collapse-button {
+    font-size: 12px !important;
+    color: #9ca3af !important;
+    margin-top: 8px !important;
+}
+
+/* ========================================================================
+   🔥 顶部导航栏按钮 - 图标化补丁 (Icon Style)
+   ======================================================================== */
+
+/* 1. 强制变成圆形按钮 */
+#mini-wallet-wrapper .wallet-adapter-button {
+  width: 36px !important;         /* 宽度固定 */
+  height: 36px !important;        /* 高度固定 */
+  padding: 0 !important;          /* 去掉内边距 */
+  border-radius: 50% !important;  /* 完美圆形 */
+  background-color: #1f2937 !important; /* 深灰色背景 (gray-800) */
+  border: 1px solid #4b5563 !important; /* 灰色边框 (gray-600) */
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+/* 2. 鼠标悬停效果 */
+#mini-wallet-wrapper .wallet-adapter-button:hover {
+  background-color: #374151 !important; /* hover 变浅一点 */
+  border-color: #9333ea !important;     /* hover 边框变紫 */
+}
+
+/* 3. 🚨 核心修正：隐藏库自带的默认图标，但允许我们自定义的 Logo 显示 */
+#mini-wallet-wrapper .wallet-adapter-button-start-icon,
+#mini-wallet-wrapper .wallet-adapter-button-end-icon {
+  display: none !important; /* 隐藏库自带的 */
+}
+
+/* ✅ 强制显示我们自己的 Logo */
+#mini-wallet-wrapper img.custom-wallet-logo {
+  display: block !important;
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 50% !important;
+}
+
+/* 4. 调整我们自定义 SVG 的位置 (未连接时) */
+#mini-wallet-wrapper svg {
+  width: 20px !important;
+  height: 20px !important;
+  color: #d1d5db !important;
+}
