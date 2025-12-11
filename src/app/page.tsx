@@ -951,32 +951,31 @@ export default function Home() {
                     )}
                   </div>
 
-              {/* 💰 直推总业绩卡片 (已修复 TypeScript 报错) */}
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                className="p-6 rounded-2xl border border-gray-800/50 bg-[#16171D]/50 backdrop-blur-sm flex items-center justify-between group hover:border-blue-500/30 transition-all shadow-lg"
-              >
-                <div>
-                  <p className="text-gray-400 text-sm font-medium mb-1 flex items-center gap-2">
-                    {/* 🔧 修复点：直接写中文，去掉 t.total_volume 防止报错 */}
-                    直推总业绩
-                    <span className="text-[10px] bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded border border-gray-700">USD</span>
-                  </p>
-                  <p className="text-xs text-gray-600 mb-2">直推交易额 (U本位)</p>
+                  {/* 💰 直推总业绩卡片*/}
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    className="p-6 rounded-2xl border border-gray-800/50 bg-[#16171D]/50 backdrop-blur-sm flex items-center justify-between group hover:border-blue-500/30 transition-all shadow-lg"
+                  >
+                    <div>
+                      <p className="text-gray-400 text-sm font-medium mb-1 flex items-center gap-2">
+                        直推总业绩
+                        <span className="text-[10px] bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded border border-gray-700">USD</span>
+                      </p>
+                      <p className="text-xs text-gray-600 mb-2">直推交易额 (U本位)</p>
 
-                  {/* 显示金额 */}
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-black text-white tracking-tight">
-                      ${teamVolume.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                </div>
+                      {/* 显示金额 */}
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-4xl font-black text-white tracking-tight">
+                          ${teamVolume.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
 
-                {/* 图标装饰 */}
-                <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center border border-blue-500/20 group-hover:scale-110 transition-transform duration-300">
-                  <span className="text-2xl">💰</span>
-                </div>
-              </motion.div>
+                    {/* 图标装饰 */}
+                    <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center border border-blue-500/20 group-hover:scale-110 transition-transform duration-300">
+                      <span className="text-2xl">💰</span>
+                    </div>
+                  </motion.div>
 
                   <div className="flex flex-col items-center justify-center p-4 w-full">
                     <p className="text-gray-400 text-xs md:text-sm mb-3">{t.referral_link}</p>
