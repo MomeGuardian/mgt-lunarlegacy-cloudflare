@@ -12,14 +12,27 @@ async function getMgtPrice() {
     const price = data.data[MGT_MINT]?.price;
     return price ? parseFloat(price) : 0;
   } catch (error) {
-    console.error("获取价格失败:", error);
+    console.error("获取 MGT 价格失败:", error);
+    return 0;
+  }
+}
+
+// (备用) 辅助函数：获取 SOL 价格
+async function getSolPriceInUsd() {
+  try {
+    const res = await fetch('https://api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112');
+    const data = await res.json();
+    const price = data?.data?.['So11111111111111111111111111111111111111112']?.price;
+    return parseFloat(price) || 0;
+  } catch (error) {
+    console.error("获取 SOL 价格失败:", error);
     return 0;
   }
 }
 
 export async function POST(request: Request) {
   try {
-    // 1. 安全验证
+    // 1. 安全验证 (检查 Helius Secret)
     const { searchParams } = new URL(request.url);
     const secret = searchParams.get('secret');
     if (secret !== process.env.HELIUS_WEBHOOK_SECRET) {
@@ -37,28 +50,31 @@ export async function POST(request: Request) {
     );
 
     // 4. 获取当前币价 (一次请求处理一批交易，节省资源)
+    // 这里我们用 MGT 的价格来计算 U 本位价值
     const currentPrice = await getMgtPrice();
     console.log(`📊 当前 MGT 价格: $${currentPrice}`);
 
     for (const tx of body) {
-      if (tx.transactionError || tx.type !== 'SWAP') continue;
+      // 过滤掉失败的交易或非 Swap 类型的交易
+      if (tx.transactionError) continue;
 
       const signature = tx.signature;
       const buyer = tx.feePayer;
 
-      // 查重
+      // 🔍 查重：防止同一笔交易被处理两次
       const { data: exist } = await supabase.from('transactions').select('signature').eq('signature', signature).single();
       if (exist) continue;
 
-      // 检查是否买入 MGT
+      // 🔍 检查是否买入 MGT
       const transfers = tx.tokenTransfers || [];
       const mgtReceived = transfers.find((t: any) => t.mint === MGT_MINT && t.toUserAccount === buyer);
 
+      // 如果不是买入 MGT，跳过
       if (!mgtReceived) continue;
 
       const buyAmount = parseFloat(mgtReceived.tokenAmount); // 买入的代币数量
       
-      // 💵 计算 USDT 价值
+      // 💵 计算 USDT 价值 (业绩)
       const usdValue = buyAmount * currentPrice;
       
       console.log(`🚀 监测到买入: ${buyer} +${buyAmount} MGT (价值 $${usdValue.toFixed(2)})`);
@@ -82,27 +98,39 @@ export async function POST(request: Request) {
             usdt_value: usdValue // ✅ 记录这笔交易值多少钱
         });
 
-        // B. 更新上级数据
+        // B. 更新上级数据 (待领奖励 + 历史总收益)
         const { data: refData } = await supabase
             .from('users')
-            .select('pending_reward, team_volume, total_earned') // 👈 多查一个 total_earned
+            .select('pending_reward, total_earned')
             .eq('wallet', referrer)
             .single();
         
         if (refData) {
             const newReward = (refData.pending_reward || 0) + reward;
-            const newVolume = (refData.team_volume || 0) + usdValue; 
-            // ✅ 新增：历史总收益也累加 (这个数字永远不减)
+            // ✅ 新增：历史总收益也累加
             const newTotalEarned = (refData.total_earned || 0) + reward;
             
+            // 更新用户表 (奖励部分)
             await supabase.from('users').update({
                 pending_reward: newReward,
-                team_volume: newVolume,
-                total_earned: newTotalEarned // 👈 写入数据库
+                total_earned: newTotalEarned
             }).eq('wallet', referrer);
+
+            // C. 🔥 关键升级：使用 RPC 函数安全更新团队业绩
+            // 这一步调用了我们在 SQL Editor 里写的 increment_team_volume 函数
+            const { error: rpcError } = await supabase.rpc('increment_team_volume', {
+                wallet_address: referrer,
+                amount_to_add: usdValue
+            });
+
+            if (rpcError) {
+                console.error("❌ RPC 更新业绩失败:", rpcError);
+            } else {
+                console.log("✅ 团队业绩已通过 RPC 更新");
+            }
         }
       } else {
-        // 无上级记录
+        // 无上级记录，仅记录交易
         await supabase.from('transactions').insert({
             signature,
             buyer,
