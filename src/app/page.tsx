@@ -250,6 +250,9 @@ export default function Home() {
   const [refList, setRefList] = useState<string[]>([]); 
   const [loadingRefList, setLoadingRefList] = useState(false);
 
+  // ✅ 新增：排行榜弹窗控制
+  const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
+
   // ✅ 新增：点击卡片触发的查询函数
   const handleShowReferrals = async () => {
     // 这里的逻辑保持不变，确保 publicKey 变量在这个函数上面已经定义了
@@ -874,30 +877,41 @@ export default function Home() {
                 animate="visible"
                 className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6"
               >
-                {/* 💰 直推总业绩卡片 (已移除报错的 t.total_volume) */}
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  className="p-6 rounded-2xl border border-gray-800/50 bg-[#16171D]/50 backdrop-blur-sm flex items-center justify-between group hover:border-blue-500/30 transition-all shadow-lg"
-                >
-                  <div>
-                    <p className="text-gray-400 text-sm font-medium mb-1 flex items-center gap-2">
-                      直推总业绩
-                      <span className="text-[10px] bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded border border-gray-700">USD</span>
-                    </p>
-                    <p className="text-xs text-gray-600 mb-2">直推交易额 (U本位)</p>
+                {/* 💰 直推总业绩卡片 (点击可查看排行榜) */}
+              <motion.div
+                onClick={() => setShowLeaderboardModal(true)} // 👈 点击打开排行榜
+                whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.03)" }}
+                whileTap={{ scale: 0.98 }}
+                className="cursor-pointer relative overflow-hidden p-6 rounded-2xl border border-gray-800/50 bg-[#16171D]/50 backdrop-blur-sm flex items-center justify-between group hover:border-blue-500/30 transition-all shadow-lg"
+              >
+              {/* 背景光效 */}
+              <div className="absolute inset-0 bg-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity blur-xl"></div>
 
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-black text-white tracking-tight">
-                        ${teamVolume.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  </div>
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-gray-400 text-sm font-medium">我的直推总业绩</p>
+                  <span className="text-[10px] bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded border border-gray-700">USD</span>
 
-                  {/* 图标装饰 */}
-                  <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center border border-blue-500/20 group-hover:scale-110 transition-transform duration-300">
-                    <span className="text-2xl">💰</span>
-                  </div>
-                </motion.div>
+                   {/* 🆕 提示标签 (悬停显示) */}
+                  <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] bg-yellow-500/10 text-yellow-500 px-1.5 py-0.5 rounded border border-yellow-500/20 font-bold">
+                      查看榜单
+                  </span>
+                </div>
+
+                <p className="text-xs text-gray-600 mb-2">直推交易额 (U本位)</p>
+
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-black text-white tracking-tight relative z-10">
+                    ${teamVolume.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+
+                {/* 图标装饰 */}
+                <div className="w-12 h-12 bg-yellow-500/10 rounded-xl flex items-center justify-center border border-yellow-500/20 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300">
+                  <span className="text-2xl">🏆</span>
+                </div>
+              </motion.div>
 
                 {/* 待领收益 */}
                 <div className="bg-gray-900/95 md:bg-gray-900/60 md:backdrop-blur rounded-2xl p-5 md:p-6 border border-yellow-500/30 relative overflow-hidden shadow-lg">
@@ -1104,6 +1118,52 @@ export default function Home() {
                         className="w-full py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-bold transition-all"
                     >
                         关闭列表
+                    </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* 🏆 排行榜弹窗 (复用 Leaderboard 组件) */}
+        <AnimatePresence>
+          {showLeaderboardModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4" onClick={() => setShowLeaderboardModal(false)}>
+              <motion.div
+                initial={{ opacity: 0, y: 50, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 50, scale: 0.95 }}
+                onClick={(e) => e.stopPropagation()} 
+                className="w-full max-w-4xl bg-[#16171D] border border-gray-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]"
+              >
+                {/* 弹窗头部 */}
+                <div className="p-5 border-b border-gray-800 flex justify-between items-center bg-white/5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">📊</span>
+                    <div>
+                        <h3 className="text-lg font-bold text-white">实时推广排行榜</h3>
+                        <p className="text-xs text-gray-400">数据实时更新，竞争顶级荣耀</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowLeaderboardModal(false)} className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 transition-all">
+                    ✕
+                  </button>
+                </div>
+
+                {/* 内容区域 - 放入 Leaderboard 组件 */}
+                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-[#0b0c10]">
+                    {/* 👇 直接复用你之前写好的排行榜组件 */}
+                    <Leaderboard />
+                </div>
+                
+                {/* 底部关闭栏 */}
+                <div className="p-4 border-t border-gray-800 bg-black/40 text-center">
+                    <p className="text-xs text-gray-500 mb-2">努力推广，下一个榜一就是你！</p>
+                    <button 
+                        onClick={() => setShowLeaderboardModal(false)}
+                        className="w-full md:w-auto px-12 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-bold transition-all border border-gray-700"
+                    >
+                        关闭榜单
                     </button>
                 </div>
               </motion.div>
