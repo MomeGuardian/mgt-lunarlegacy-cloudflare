@@ -5,46 +5,43 @@ import { NextResponse } from 'next/server';
 const MGT_MINT = "59eXaVJNG441QW54NTmpeDpXEzkuaRjSLm8M6N4Gpump";
 
 // 🔧 配置：如果 API 查不到价格，就用这个默认价格 (用于测试或预售阶段)
-const DEFAULT_TEST_PRICE = 0.00011988; // 👈 你可以改成你的预售价格，比如 0.02
+const DEFAULT_TEST_PRICE = 0.00011968; // 👈 你可以改成你的预售价格，比如 0.02
 
-// 💰 1. 获取 MGT 价格 (带保底机制)
+// 💰 升级版：使用 DexScreener 获取价格 (新币神器，实时且精准)
 async function getMgtPrice() {
   try {
-    const response = await fetch(`https://api.jup.ag/price/v2?ids=${MGT_MINT}`);
-    const data = await response.json();
-    const price = data.data?.[MGT_MINT]?.price;
+    // 1. 优先请求 DexScreener API
+    const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${MGT_MINT}`);
+    const data = await res.json();
     
-    if (price) {
-      console.log(`✅ Jupiter API 获取价格成功: $${price}`);
-      return parseFloat(price);
-    } else {
-      console.warn(`⚠️ Jupiter 未返回价格，使用默认测试价格: $${DEFAULT_TEST_PRICE}`);
-      return DEFAULT_TEST_PRICE; // <--- 保底
+    // DexScreener 会返回该代币的所有交易对，通常第一个就是流动性最好的
+    const pair = data.pairs?.[0]; 
+    
+    if (pair && pair.priceUsd) {
+      console.log(`✅ DexScreener 抓取价格: $${pair.priceUsd}`);
+      return parseFloat(pair.priceUsd);
     }
+
+    // 2. (备用) 如果 DexScreener 还没收录，再尝试 Jupiter
+    const jupRes = await fetch(`https://api.jup.ag/price/v2?ids=${MGT_MINT}`);
+    const jupData = await jupRes.json();
+    const jupPrice = jupData.data?.[MGT_MINT]?.price;
+
+    if (jupPrice) {
+      console.log(`✅ Jupiter 备用价格: $${jupPrice}`);
+      return parseFloat(jupPrice);
+    }
+
+    // 3. (最后防线) 实在查不到，再用那个预售保底价
+    // 只要你的池子建好了，基本上代码不会走到这一步
+    console.warn("⚠️ 所有 API 均未返回价格，使用预售保底价");
+    return 0.00011988; 
+
   } catch (error) {
-    console.error("获取价格失败，使用默认值:", error);
-    return DEFAULT_TEST_PRICE; // <--- 报错也保底
+    console.error("价格 API 请求失败:", error);
+    return 0.00011988;
   }
 }
-
-export async function POST(request: Request) {
-  try {
-    // 1. 安全验证
-    const { searchParams } = new URL(request.url);
-    const secret = searchParams.get('secret');
-    if (secret !== process.env.HELIUS_WEBHOOK_SECRET) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // 2. 解析数据
-    const body = await request.json();
-    if (!body || !Array.isArray(body)) return NextResponse.json({ message: 'No transactions' });
-
-    // 3. 初始化 Supabase
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
 
     // 4. 获取计算用的价格
     const calcPrice = await getMgtPrice();
