@@ -4,17 +4,16 @@ import { NextResponse } from 'next/server';
 // 你的代币合约 (MGT)
 const MGT_MINT = "59eXaVJNG441QW54NTmpeDpXEzkuaRjSLm8M6N4Gpump";
 
-// 🔧 配置：如果 API 查不到价格，就用这个默认价格 (用于测试或预售阶段)
-const DEFAULT_TEST_PRICE = 0.00011968; // 👈 你可以改成你的预售价格，比如 0.02
+// 🛡️ 保底价格：当所有 API 都挂了时使用 (建议设为当前的预估价)
+// 不要删！这是最后一道防线！
+const FALLBACK_PRICE = 0.00012; 
 
-// 💰 升级版：使用 DexScreener 获取价格 (新币神器，实时且精准)
+// 💰 智能获取价格 (DexScreener -> Jupiter -> 保底)
 async function getMgtPrice() {
   try {
-    // 1. 优先请求 DexScreener API
+    // 1. 优先请求 DexScreener API (针对新币最准)
     const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${MGT_MINT}`);
     const data = await res.json();
-    
-    // DexScreener 会返回该代币的所有交易对，通常第一个就是流动性最好的
     const pair = data.pairs?.[0]; 
     
     if (pair && pair.priceUsd) {
@@ -22,7 +21,7 @@ async function getMgtPrice() {
       return parseFloat(pair.priceUsd);
     }
 
-    // 2. (备用) 如果 DexScreener 还没收录，再尝试 Jupiter
+    // 2. (备用) 如果 DexScreener 没数据，尝试 Jupiter
     const jupRes = await fetch(`https://api.jup.ag/price/v2?ids=${MGT_MINT}`);
     const jupData = await jupRes.json();
     const jupPrice = jupData.data?.[MGT_MINT]?.price;
@@ -32,19 +31,37 @@ async function getMgtPrice() {
       return parseFloat(jupPrice);
     }
 
-    // 3. (最后防线) 实在查不到，再用那个预售保底价
-    // 只要你的池子建好了，基本上代码不会走到这一步
-    console.warn("⚠️ 所有 API 均未返回价格，使用预售保底价");
-    return 0.00011988; 
+    // 3. (最后防线) 实在查不到，使用保底价
+    console.warn(`⚠️ API 均未返回，启用保底价格: $${FALLBACK_PRICE}`);
+    return FALLBACK_PRICE; 
 
   } catch (error) {
-    console.error("价格 API 请求失败:", error);
-    return 0.00011988;
+    console.error("❌ 价格 API 请求全失败，启用保底价格:", error);
+    return FALLBACK_PRICE;
   }
 }
 
-    // 4. 获取计算用的价格
-    const calcPrice = await getMgtPrice();
+export async function POST(request: Request) {
+  try {
+    // 1. 安全验证
+    const { searchParams } = new URL(request.url);
+    const secret = searchParams.get('secret');
+    if (secret !== process.env.HELIUS_WEBHOOK_SECRET) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // 2. 解析数据
+    const body = await request.json();
+    if (!body || !Array.isArray(body)) return NextResponse.json({ message: 'No transactions' });
+
+    // 3. 初始化 Supabase
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    // 4. 获取本次计算用的价格
+    const currentPrice = await getMgtPrice();
 
     for (const tx of body) {
       if (tx.transactionError) continue;
@@ -64,19 +81,19 @@ async function getMgtPrice() {
 
       const buyAmount = parseFloat(mgtReceived.tokenAmount); // 买入数量
       
-      // 💵 计算 USDT 价值 (业绩)
-      const usdValue = buyAmount * calcPrice;
+      // 💵 计算 USDT 价值
+      const usdValue = buyAmount * currentPrice;
       
-      console.log(`🚀 监测到买入: ${buyer} +${buyAmount} MGT (计算价格: $${calcPrice}, 总值: $${usdValue.toFixed(2)})`);
+      console.log(`🚀 买入监测: ${buyer} +${buyAmount} MGT (价格: $${currentPrice}, 价值: $${usdValue.toFixed(2)})`);
 
-      // 5. 查找上级
+      // 5. 查找上级并分账
       const { data: user } = await supabase.from('users').select('referrer').eq('wallet', buyer).single();
 
       if (user?.referrer) {
         const referrer = user.referrer;
-        const reward = buyAmount * 0.05; // 5% 返现 (币)
+        const reward = buyAmount * 0.05; // 5% 返现
 
-        console.log(`✅ 归属上级: ${referrer}, 增加业绩: $${usdValue.toFixed(2)}`);
+        console.log(`✅ 业绩归属: ${referrer} +$${usdValue.toFixed(2)}`);
 
         // A. 记录流水
         await supabase.from('transactions').insert({
@@ -88,7 +105,7 @@ async function getMgtPrice() {
             usdt_value: usdValue
         });
 
-        // B. 更新上级数据 (待领 + 总赚)
+        // B. 更新上级数据
         const { data: refData } = await supabase
             .from('users')
             .select('pending_reward, total_earned')
@@ -104,18 +121,13 @@ async function getMgtPrice() {
                 total_earned: newTotalEarned
             }).eq('wallet', referrer);
 
-            // C. 🔥 使用 RPC 更新团队业绩 (防冲突)
-            // 确保你之前在 SQL Editor 运行过 create function increment_team_volume...
+            // C. RPC 安全更新业绩
             const { error: rpcError } = await supabase.rpc('increment_team_volume', {
                 wallet_address: referrer,
                 amount_to_add: usdValue
             });
 
-            if (rpcError) {
-                console.error("❌ RPC 更新业绩失败:", rpcError);
-            } else {
-                console.log("✅ 团队业绩更新成功");
-            }
+            if (rpcError) console.error("❌ RPC Error:", rpcError);
         }
       } else {
         // 无上级
