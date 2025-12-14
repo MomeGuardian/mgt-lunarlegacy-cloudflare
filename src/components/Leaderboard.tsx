@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { supabase } from "@/lib/supabase";
+import { createClient } from '@supabase/supabase-js'; // ✅ 改用基础库，你肯定有
 
+// ✅ 1. 定义 Props
 interface Props {
   currentUserWallet?: string;
 }
@@ -15,15 +16,28 @@ interface LeaderboardUser {
   team_volume: number | null;
 }
 
+// ✅ 初始化客户端 (放在组件外，防止重复创建)
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+// ✅ 2. 组件定义
 export default function Leaderboard({ currentUserWallet }: Props) {
   const [leaders, setLeaders] = useState<LeaderboardUser[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // 获取数据
   const fetchLeaderboard = async () => {
     try {
-      const res = await fetch('/api/leaderboard');
-      const data = await res.json();
-      if (Array.isArray(data)) setLeaders(data);
+      // 直接查视图
+      const { data, error } = await supabase
+        .from('leaderboard_view')
+        .select('*')
+        .limit(50);
+      
+      if (error) throw error;
+      setLeaders(data || []);
     } catch (error) {
       console.error("加载失败:", error);
     } finally {
@@ -33,6 +47,7 @@ export default function Leaderboard({ currentUserWallet }: Props) {
 
   useEffect(() => {
     fetchLeaderboard();
+    // 实时订阅
     const channel = supabase.channel('lb_update').on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, fetchLeaderboard).subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
@@ -44,10 +59,9 @@ export default function Leaderboard({ currentUserWallet }: Props) {
   if (loading) return <div className="p-8 text-center text-gray-500 animate-pulse">正在载入战况...</div>;
 
   return (
-    // ✅ 关键改动 1: h-full (占满高度) + flex-col (垂直布局)
     <div className="w-full h-full flex flex-col bg-[#16171D] relative overflow-hidden">
       
-      {/* --- 顶部表头 (固定不动 shrink-0) --- */}
+      {/* --- 表头 --- */}
       <div className="shrink-0 hidden md:grid grid-cols-12 gap-4 px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-800/50 bg-[#16171D] z-10">
         <div className="col-span-1 text-center">排名</div>
         <div className="col-span-4">用户</div>
@@ -56,7 +70,7 @@ export default function Leaderboard({ currentUserWallet }: Props) {
         <div className="col-span-3 text-right">追赶目标 (USD)</div>
       </div>
 
-      {/* --- 中间列表 (只有这一块区域滚动 flex-1 overflow-y-auto) --- */}
+      {/* --- 列表 --- */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-2"> 
         {leaders.map((user, index) => {
           const volume = user.team_volume || 0;
@@ -81,9 +95,7 @@ export default function Leaderboard({ currentUserWallet }: Props) {
               transition={{ delay: index * 0.05 }}
               className={`relative grid grid-cols-12 gap-2 md:gap-4 items-center p-3 md:p-4 rounded-xl border mb-2 ${rowClass}`}
             >
-              {/* 排名 */}
               <div className="col-span-2 md:col-span-1 flex justify-center text-lg md:text-xl">{rankBadge}</div>
-              {/* 用户 */}
               <div className="col-span-5 md:col-span-4 flex items-center gap-2 overflow-hidden">
                 <div className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[10px] md:text-xs font-bold ${isMe ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'}`}>
                   {isMe ? 'ME' : user.wallet[0]}
@@ -95,12 +107,10 @@ export default function Leaderboard({ currentUserWallet }: Props) {
                     <span className="text-[9px] text-gray-600 md:hidden">业绩: ${volume.toFixed(2)}</span>
                 </div>
               </div>
-              {/* 直推人数 */}
               <div className="hidden md:flex col-span-2 items-center justify-center gap-1">
                 <span className="text-green-400 font-bold">{user.referrals_count}</span>
                 <span className="text-gray-600 text-xs">人</span>
               </div>
-              {/* 总收益 */}
               <div className="col-span-5 md:col-span-2 text-right flex flex-col justify-center items-end">
                   <span className="font-mono font-bold text-yellow-500 text-xs md:text-sm">
                     {earned.toFixed(0)} <span className="text-[9px] opacity-70">MGT</span>
@@ -109,7 +119,6 @@ export default function Leaderboard({ currentUserWallet }: Props) {
                       <span>👥</span><span className="font-bold text-gray-300">{user.referrals_count}</span>
                   </div>
               </div>
-              {/* 差距 */}
               <div className="col-span-12 md:col-span-3 mt-1 md:mt-0 flex md:justify-end items-center md:border-0 md:pt-0">
                 {index === 0 ? (
                   <span className="text-[10px] font-bold text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded-full scale-90 origin-right">🔥 遥遥领先</span>
@@ -125,8 +134,7 @@ export default function Leaderboard({ currentUserWallet }: Props) {
         })}
       </div>
 
-      {/* ✅ 关键改动 2: 底部固定栏 (shrink-0) - 移除了 absolute，改为正常的 Flex 元素 */}
-      {/* 这样它会永远占据最底部的位置，不会覆盖内容，也不会被内容挤跑 */}
+      {/* --- 底部固定栏 --- */}
       <div className="shrink-0 h-[60px] bg-[#1a1b23] border-t border-gray-700/50 z-20 flex items-center px-4 justify-between shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
         {myData ? (
           <>
