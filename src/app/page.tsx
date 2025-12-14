@@ -17,7 +17,7 @@ import bs58 from 'bs58';
 import confetti from 'canvas-confetti';
 
 // ------------------------------------------------------------------
-// 🌍 多语言配置字典
+// 🌍 多语言配置字典 (已更新为线性释放文案)
 // ------------------------------------------------------------------
 const translations = {
   zh: {
@@ -41,10 +41,11 @@ const translations = {
     copy_link: "复制链接",
     team_volume: "直推总业绩",
     team_volume_desc: "直推交易额",
-    pending_reward: "可领取返现",
-    pending_reward_desc: "5% 交易税分成",
-    claim_btn: "一键领取",
-    claim_loading: "领取中...",
+    // 👇 修改了这里
+    pending_reward: "待释放总额",
+    pending_reward_desc: "每日线性释放 0.2%",
+    claim_btn: "收取释放",
+    claim_loading: "计算释放中...",
     chart_title: "实时走势",
     manual_bind_title: "手动绑定上级",
     manual_bind_placeholder: "输入地址...",
@@ -77,10 +78,11 @@ const translations = {
     copy_link: "Copy Link",
     team_volume: "Direct Volume",
     team_volume_desc: "Total Trading Vol",
-    pending_reward: "Claimable",
-    pending_reward_desc: "5% Tax Share",
-    claim_btn: "Claim",
-    claim_loading: "Claiming...",
+    // 👇 Modified here
+    pending_reward: "Total Locked",
+    pending_reward_desc: "Daily Vesting 0.17%",
+    claim_btn: "Harvest",
+    claim_loading: "Calculating...",
     chart_title: "Live Chart",
     manual_bind_title: "Bind Referrer Manually",
     manual_bind_placeholder: "Enter address...",
@@ -227,16 +229,20 @@ export default function Home() {
   const [myRefs, setMyRefs] = useState(0);
   const hasCheckedRef = useRef(false);
   const bindRef = useRef(false);
-  const [pendingReward, setPendingReward] = useState(0);
   const [baseUrl, setBaseUrl] = useState(''); 
   const [teamVolume, setTeamVolume] = useState(0); 
+  
+  // ✅ 状态升级：不再使用 pendingReward，改用 lockedReward
+  const [lockedReward, setLockedReward] = useState(0); 
   const [claiming, setClaiming] = useState(false);
   const [loading, setLoading] = useState(true);
   const hasShownWelcome = useRef(false);
   const [showClaimSuccess, setShowClaimSuccess] = useState(false);
-  const [lastSignature, setLastSignature] = useState(""); // 存储交易哈希
+  
+  // 用于弹窗显示的本次释放金额
+  const [lastReleasedAmount, setLastReleasedAmount] = useState(0); 
 
-  // 状态管理 (移除了 showLeaderboard)
+  // 状态管理
   const [isBinding, setIsBinding] = useState(false); 
   const [manualReferrer, setManualReferrer] = useState(""); 
   const [showRules, setShowRules] = useState(false);
@@ -253,16 +259,19 @@ export default function Home() {
   // ✅ 新增：排行榜弹窗控制
   const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
 
+  // ✅ 新增：上次结算时间
+  const [lastVestingTime, setLastVestingTime] = useState<string | null>(null);
+  // ✅ 新增：实时计算的“当前可领”金额
+  const [liveClaimable, setLiveClaimable] = useState(0);
+
   // ✅ 新增：点击卡片触发的查询函数
   const handleShowReferrals = async () => {
-    // 这里的逻辑保持不变，确保 publicKey 变量在这个函数上面已经定义了
     if (!publicKey) return;
     
     setLoadingRefList(true);
     setShowRefListModal(true);
     
     try {
-      // 这里的 users 对应数据库表名，referrer 对应字段名
       const { data, error } = await supabase
         .from('users')
         .select('wallet')
@@ -293,7 +302,7 @@ export default function Home() {
     if (ref) setInviter(ref);
   }, []);
 
-// 🌟 核心逻辑：自动登录 + 欢迎弹窗
+  // 🌟 核心逻辑：自动登录 + 欢迎弹窗
   useEffect(() => {
     const STORAGE_KEY = "mgt_has_shown_welcome";
 
@@ -325,9 +334,9 @@ export default function Home() {
       setShowWelcome(false);
       localStorage.removeItem(STORAGE_KEY);
     }
-  }, [connected, publicKey]); // 依赖项加上 publicKey，确保地址拿到了才发请求
+  }, [connected, publicKey]); 
 
-// 自动绑定逻辑
+  // 自动绑定逻辑
   const bindReferral = useCallback(async () => {
     if (!publicKey || !inviter || !signMessage || bindRef.current) return;
     if (inviter === publicKey.toBase58()) return;
@@ -335,7 +344,6 @@ export default function Home() {
     bindRef.current = true;
     
     try {
-      // 1. 检查是否已绑定
       const { data } = await supabase.from("users").select("referrer").eq("wallet", publicKey.toBase58()).maybeSingle();
       
       if (data?.referrer) {
@@ -343,17 +351,11 @@ export default function Home() {
         return; 
       }
 
-      // 2. 构造签名消息
       const messageContent = `Bind referrer ${inviter} to ${publicKey.toBase58()}`;
       const message = new TextEncoder().encode(messageContent);
-      
-      // 3. 签名
       const signatureBytes = await signMessage(message);
-      
-      // 4. 编码签名
       const signatureStr = bs58.encode(signatureBytes);
 
-      // 5. 发送请求
       const res = await fetch('/api/referral/bind', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -369,7 +371,6 @@ export default function Home() {
 
       if (!res.ok) throw new Error(result.error);
 
-      // 6. 成功提示
       toast.success(t.success_bind, {
           position: "top-center",
           style: {
@@ -387,11 +388,9 @@ export default function Home() {
 
     } catch (err: any) {
       console.error("自动绑定失败:", err);
-      // 如果是用户拒绝签名，不要报红错
       if (!err.message?.includes("User rejected")) {
-          // toast.error("绑定失败: " + err.message); 
       }
-      bindRef.current = false; // 允许重试
+      bindRef.current = false; 
     }
   }, [publicKey, inviter, signMessage, t]);
 
@@ -399,7 +398,7 @@ export default function Home() {
     if (connected && publicKey) bindReferral();
   }, [connected, publicKey, bindReferral]);
 
-// 手动绑定逻辑
+  // 手动绑定逻辑
   const handleManualBind = async () => {
     if (!publicKey || !signMessage) return;
     if (!manualReferrer || manualReferrer.length < 32) {
@@ -414,11 +413,7 @@ export default function Home() {
     try {
         const messageContent = `Bind referrer ${manualReferrer} to ${publicKey.toBase58()}`;
         const message = new TextEncoder().encode(messageContent);
-        
         const signatureBytes = await signMessage(message);
-        
-        // ❌ 删除这行: const bs58 = require('bs58');
-        // ✅ 直接使用顶部的 bs58
         const signatureStr = bs58.encode(signatureBytes);
 
         const res = await fetch('/api/referral/bind', {
@@ -454,17 +449,14 @@ export default function Home() {
         toast.error(err.message || "Bind Failed");
     }
   };
-// ------------------------------------------------------------------
-  // ✅ 1. 加载用户数据 (修复版：已解决变量重名 & 语法错误)
+
+  // ------------------------------------------------------------------
+  // ✅ 1. 加载用户数据 (已修改为查询 locked_reward)
   // ------------------------------------------------------------------
   useEffect(() => {
-    // 只有当钱包已连接时才执行
     if (connected && publicKey) {
-      
-      // 🌟 定义异步加载函数
       const loadData = async () => {
         try {
-          // A. 获取上级信息 (重命名为 refData)
           const { data: refData } = await supabase
             .from("users")
             .select("referrer")
@@ -473,7 +465,6 @@ export default function Home() {
             
           if (refData?.referrer) setInviter(refData.referrer);
 
-          // B. 获取直推人数 (count)
           const { count } = await supabase
             .from("users")
             .select("*", { count: "exact", head: true })
@@ -481,73 +472,102 @@ export default function Home() {
           
           setMyRefs(count || 0);
 
-          // C. 获取收益和业绩 (重命名为 financeData)
+          // C. 获取冻结池和业绩
           const { data: financeData } = await supabase
             .from("users")
-            .select("pending_reward, team_volume") // 同时查询两个字段
+            .select("locked_reward, team_volume, last_vesting_time") // 👈 关键修改
             .eq("wallet", publicKey.toBase58())
             .single();
           
-          setPendingReward(financeData?.pending_reward || 0);
-          setTeamVolume(financeData?.team_volume || 0); 
+          setLockedReward(financeData?.locked_reward || 0);
+          setTeamVolume(financeData?.team_volume || 0);
+          setLastVestingTime(financeData?.last_vesting_time || null);
           
         } catch (error) {
           console.error("加载数据失败:", error);
         }
       };
 
-      loadData(); // 👈 立即执行
+      loadData(); 
     } else {
-        // 未连接时，数据清零
         setMyRefs(0);
-        setPendingReward(0);
+        setLockedReward(0);
         setTeamVolume(0);
     }
   }, [publicKey, connected]);
 
+// ------------------------------------------------------------------
+  // ✅ 2.useEffect B: 每日 00:00 倒计时检查器
+  // ------------------------------------------------------------------
+  // 新增一个状态来存倒计时字符串 (放在组件顶部 const 区域)
+  const [countDownStr, setCountDownStr] = useState(""); 
 
-  // ------------------------------------------------------------------
-  // ✅ 2. 实时监听数据变化 (让业绩实时跳动)
-  // ------------------------------------------------------------------
   useEffect(() => {
-    if (!connected || !publicKey) return;
+    // 没钱就不算了
+    if (!lockedReward || lockedReward <= 0) {
+      setLiveClaimable(0);
+      return;
+    }
 
-    // 创建实时通道
-    const channel = supabase
-      .channel('realtime_users_updates')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'users',
-          filter: `wallet=eq.${publicKey.toBase58()}` // 只监听自己的钱包
-        },
-        (payload) => {
-          const newUser = payload.new as any;
-          if (newUser) {
-            console.log("⚡️ 收到实时更新:", newUser);
-            
-            // 实时更新前端显示的数字
-            setPendingReward(newUser.pending_reward || 0);
-            setTeamVolume(newUser.team_volume || 0);
-          }
-        }
-      )
-      .subscribe();
+    const checkAvailability = () => {
+      const now = new Date();
+      const lastTime = lastVestingTime ? new Date(lastVestingTime) : new Date(0);
 
-    return () => {
-      supabase.removeChannel(channel);
+      // --- 关键算法：全部转成“北京时间对象”来比较 ---
+      const offset = 8 * 60 * 60 * 1000; // 8小时的毫秒数
+      
+      const bjNow = new Date(now.getTime() + offset);
+      const bjLast = new Date(lastTime.getTime() + offset);
+
+      const todayStr = bjNow.toISOString().split('T')[0];
+      const lastDayStr = bjLast.toISOString().split('T')[0];
+
+      // 1. 判断北京日期是否不同
+      if (todayStr !== lastDayStr) {
+        // ✅ 不是同一天 -> 可以领！
+        setLiveClaimable(lockedReward / 14);
+        setCountDownStr("✨ 今日额度已释放 ✨");
+      } else {
+        // ❌ 是同一天 -> 不能领 -> 计算距离北京明天的倒计时
+        setLiveClaimable(0); 
+
+        // 计算逻辑：
+        // 取“北京现在的这一天”，往后推一天，设为 00:00:00
+        const tomorrowMidnightBj = new Date(bjNow); 
+        tomorrowMidnightBj.setUTCDate(tomorrowMidnightBj.getUTCDate() + 1);
+        tomorrowMidnightBj.setUTCHours(0, 0, 0, 0);
+
+        // 倒计时 = 明天凌晨 - 现在 (都是北京时间，可以直接减)
+        const diff = tomorrowMidnightBj.getTime() - bjNow.getTime();
+        
+        // 格式化倒计时
+        const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
+        const m = Math.floor((diff / (1000 * 60)) % 60);
+        const s = Math.floor((diff / 1000) % 60);
+        setCountDownStr(`下轮释放: ${h}时${m}分${s}秒`);
+      }
     };
-  }, [connected, publicKey]);
 
+    checkAvailability(); 
+    const interval = setInterval(checkAvailability, 1000);
+
+    return () => clearInterval(interval);
+  }, [lockedReward, lastVestingTime]);
 
   // ------------------------------------------------------------------
-  // ✅ 3. 提现功能 (包含撒花特效)
+  // ✅ 3. 收取释放 (Harvest Function)
   // ------------------------------------------------------------------
   const claimReward = async () => {
     if (!publicKey) return;
+    // 如果冻结池都没钱，就别点了
+    if (lockedReward <= 0) {
+        toast.error("暂无奖励可释放");
+        return;
+    }
+
     setClaiming(true);
+    const toastId = toast.loading("正在计算并释放奖励...");
+
     try {
       const res = await fetch("/api/claim", {
         method: "POST",
@@ -558,9 +578,16 @@ export default function Home() {
       
       if (res.ok) {
         // ✅ 成功逻辑：
-        setPendingReward(0);
-        setLastSignature(data.signature);
+        // data.released 是后端算出来的本次释放金额
+        const releasedVal = data.released || 0;
+        setLastReleasedAmount(releasedVal); // 用于弹窗显示
+        
+        // 更新前端显示的“冻结总额” (减去刚才领走的)
+        setLockedReward(prev => Math.max(0, prev - releasedVal));
+        
         setShowClaimSuccess(true);
+        toast.dismiss(toastId); // 关闭 loading toast
+
         // 触发撒花特效 🎊
         confetti({
           particleCount: 150,
@@ -570,11 +597,11 @@ export default function Home() {
         });
       } else {
         const errorMessage = data.error || data.message || JSON.stringify(data);
-        toast.error("提现失败: " + errorMessage);
+        toast.error(errorMessage, { id: toastId });
       }
     } catch (err) {
-      console.error("提现网络错误:", err);
-      toast.error("网络连接失败，请稍后重试");
+      console.error("释放请求错误:", err);
+      toast.error("网络连接失败，请稍后重试", { id: toastId });
     }
     setClaiming(false);
   };
@@ -610,7 +637,6 @@ export default function Home() {
         animate="visible"
       >
         <Navbar 
-            // ❌ 移除了 onOpenLeaderboard，因为现在是跳转页面
             onOpenRules={() => setShowRules(true)}
             onOpenIntro={() => setShowIntro(true)}
             lang={lang}
@@ -662,7 +688,7 @@ export default function Home() {
           )}
         </AnimatePresence>
 
-        {/* 🎉 提现成功 史诗级弹窗 🎉 */}
+        {/* 🎉 释放成功 史诗级弹窗 🎉 */}
         <AnimatePresence>
           {showClaimSuccess && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
@@ -682,25 +708,16 @@ export default function Home() {
                 </div>
 
                 <h3 className="text-2xl font-black text-white mb-2 tracking-wide">
-                  提现成功!
+                  成功释放!
                 </h3>
                 <p className="text-gray-400 text-sm mb-6">
-                  收益已发送至您的钱包<br/>请查收 $MGT
+                  本次释放金额：<br/>
+                  <span className="text-2xl font-bold text-yellow-400">{lastReleasedAmount.toFixed(4)} MGT</span>
+                  <br/><span className="text-xs text-gray-500 mt-2 block">请等待管理员手动打款</span>
                 </p>
 
                 {/* 按钮组 */}
                 <div className="flex flex-col gap-3">
-                    {/* 查看浏览器按钮 */}
-                    <a 
-                      href={`https://solscan.io/tx/${lastSignature}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="w-full py-3 bg-[#111] hover:bg-[#222] border border-gray-700 hover:border-green-500/50 rounded-xl text-green-400 font-bold text-sm transition-all flex items-center justify-center gap-2"
-                    >
-                      <span>🔍 查看链上记录</span>
-                    </a>
-
-                    {/* 关闭按钮 */}
                     <button
                       onClick={() => setShowClaimSuccess(false)}
                       className="w-full py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-xl font-bold shadow-lg shadow-green-900/20 active:scale-95 transition-all"
@@ -744,8 +761,6 @@ export default function Home() {
             )}
         </AnimatePresence>
 
-        {/* ❌ 移除了原有的排行榜弹窗代码 */}
-
         {/* 📜 规则弹窗 */}
         <AnimatePresence>
             {showRules && (
@@ -759,10 +774,10 @@ export default function Home() {
                         <button onClick={() => setShowRules(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white">✕</button>
                         <h3 className="text-xl font-bold text-blue-400 mb-4">📜 {t.more_rules}</h3>
                         <div className="space-y-3 text-gray-300 text-sm leading-relaxed">
-                            <p>1. <span className="text-white font-bold">绑定关系：</span> 连接钱包后，系统自动绑定邀请关系，或手动输入地址绑定。</p>
-                            <p>2. <span className="text-white font-bold">返现机制：</span> 您的下级每次产生交易，您将自动获得交易税的 <span className="text-yellow-400 font-bold">5%</span> 返现。</p>
-                            <p>3. <span className="text-white font-bold">排行榜：</span> 排行榜根据“直推人数”和“团队总业绩”实时更新。</p>
-                            <p>4. <span className="text-white font-bold">领取奖励：</span> 返现金额累计在“待领收益”中，您可以随时一键提现。</p>
+                            <p>1. <span className="text-white font-bold">绑定关系：</span> 连接钱包后，系统自动绑定邀请关系。</p>
+                            <p>2. <span className="text-white font-bold">线性释放：</span> 奖励进入冻结池，每日自动释放 <span className="text-yellow-400 font-bold">0.17%</span>。</p>
+                            <p>3. <span className="text-white font-bold">排行榜：</span> 实时更新直推人数和业绩。</p>
+                            <p>4. <span className="text-white font-bold">收取释放：</span> 点击“收取释放”按钮结算当前已释放的奖励。</p>
                         </div>
                     </motion.div>
                 </div>
@@ -782,7 +797,7 @@ export default function Home() {
                         <button onClick={() => setShowIntro(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white">✕</button>
                         <h3 className="text-xl font-bold text-purple-400 mb-4">ℹ️ About $MGT</h3>
                         <div className="space-y-3 text-gray-300 text-sm leading-relaxed">
-                            <p>$MGT (Moon Global Token) 是 Solana 链上首个结合 <span className="text-white font-bold">“强地推 + 自动分账”</span> 的创新 Meme 代币。</p>
+                            <p>$MGT (Moon Global Token) 是 Solana 链上首个结合 <span className="text-white font-bold">“强地推 + 线性释放”</span> 的创新 Meme 代币。</p>
                             <div className="mt-4 p-3 bg-gray-900 rounded-lg border border-gray-700">
                                 <p className="text-xs text-gray-500 mb-1">Contract Address (CA):</p>
                                 <p className="text-xs text-green-400 font-mono break-all">{contractAddress}</p>
@@ -870,16 +885,16 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* 2. 财务数据 */}
+              {/* 2. 财务数据 (已全面升级为 线性释放 UI) */}
               <motion.div 
                 variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { delay: 0.6, duration: 0.6 } } }}
                 initial="hidden" 
                 animate="visible"
                 className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6"
               >
-                {/* 💰 直推总业绩卡片 (点击可查看排行榜) */}
+                {/* 💰 直推总业绩卡片 (保持不变) */}
               <motion.div
-                onClick={() => setShowLeaderboardModal(true)} // 👈 点击打开排行榜
+                onClick={() => setShowLeaderboardModal(true)} 
                 whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.03)" }}
                 whileTap={{ scale: 0.98 }}
                 className="cursor-pointer relative overflow-hidden p-6 rounded-2xl border border-gray-800/50 bg-[#16171D]/50 backdrop-blur-sm flex items-center justify-between group hover:border-blue-500/30 transition-all shadow-lg"
@@ -892,7 +907,7 @@ export default function Home() {
                   <p className="text-gray-400 text-sm font-medium">我的直推总业绩</p>
                   <span className="text-[10px] bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded border border-gray-700">USD</span>
 
-                   {/* 🆕 提示标签 (悬停显示) */}
+                    {/* 🆕 提示标签 (悬停显示) */}
                   <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] bg-yellow-500/10 text-yellow-500 px-1.5 py-0.5 rounded border border-yellow-500/20 font-bold">
                       查看榜单
                   </span>
@@ -913,30 +928,86 @@ export default function Home() {
                 </div>
               </motion.div>
 
-                {/* 待领收益 */}
-                <div className="bg-gray-900/95 md:bg-gray-900/60 md:backdrop-blur rounded-2xl p-5 md:p-6 border border-yellow-500/30 relative overflow-hidden shadow-lg">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-500/10 rounded-full blur-2xl -z-10"></div>
-                  <div className="flex justify-between items-start">
-                    <div className="text-left">
-                      <p className="text-yellow-200 text-sm font-medium">{t.pending_reward}</p>
-                      <p className="text-[10px] text-gray-500 mt-0.5">{t.pending_reward_desc}</p>
+              {/* 🎁 每日释放卡片 (00:00 准点版) */}
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className="p-6 rounded-2xl border border-gray-800/50 bg-[#16171D]/50 backdrop-blur-sm flex items-center justify-between group hover:border-green-500/30 transition-all shadow-lg"
+              >
+                <div className="flex flex-col gap-3">
+                  {/* 第一行：总金库 */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-gray-500 text-xs font-medium">总锁仓 (Locked)</p>
+                      <span className="text-[9px] bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded border border-gray-700">
+                        14天线性释放
+                      </span>
                     </div>
-                    <div className="p-2 bg-yellow-500/20 rounded-lg text-yellow-400 text-lg">🎁</div>
+                    <div className="flex items-baseline gap-1 opacity-70">
+                      <span className="text-lg font-bold text-gray-300 font-mono">
+                        {lockedReward.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                      <span className="text-xs text-gray-600">MGT</span>
+                    </div>
                   </div>
-                  <div className="mt-3 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-                    <p className="text-3xl md:text-4xl font-bold text-yellow-400 tracking-tight">
-                      {pendingReward.toFixed(4)} <span className="text-sm text-yellow-600">MGT</span>
-                    </p>
-                    <button
-                      onClick={claimReward}
-                      disabled={claiming || pendingReward <= 0}
-                      className="w-full md:w-auto px-5 py-2 bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 active:scale-95 rounded-xl text-xs font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md"
-                    >
-                      {claiming ? t.claim_loading : t.claim_btn}
-                    </button>
+
+                  <div className="w-full h-px bg-gray-800/50"></div>
+
+                  {/* 第二行：今日可领 (带倒计时) */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                        <p className={`text-sm font-bold flex items-center gap-1 ${liveClaimable > 0 ? 'text-green-400' : 'text-orange-400'}`}>
+                            {liveClaimable > 0 ? (
+                                <>
+                                  <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                  </span>
+                                  今日可领 (Available)
+                                </>
+                            ) : (
+                                <>
+                                  <span>⏳</span> {countDownStr || "计算中..."}
+                                </>
+                            )}
+                        </p>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <span className={`text-3xl md:text-4xl font-black tracking-tight font-mono ${liveClaimable > 0 ? 'text-white' : 'text-gray-500'}`}>
+                        {liveClaimable > 0 ? liveClaimable.toFixed(4) : "0.0000"}
+                      </span>
+                      <span className="text-sm text-gray-600 font-bold">MGT</span>
+                    </div>
                   </div>
                 </div>
-              </motion.div> 
+
+                {/* 按钮 */}
+                <div>
+                      <button
+                      onClick={claimReward}
+                      // 没钱的时候禁用按钮
+                      disabled={claiming || liveClaimable <= 0}
+                      className={`
+                        relative overflow-hidden px-5 py-6 rounded-xl font-bold text-sm transition-all shadow-lg flex flex-col items-center justify-center min-w-[110px]
+                        ${(claiming || liveClaimable <= 0)
+                          ? "bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700"
+                          : "bg-gradient-to-br from-green-500 to-emerald-700 hover:scale-105 text-white shadow-green-500/20 border border-green-400/20"
+                        }
+                      `}
+                    >
+                      {claiming ? (
+                        <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      ) : (
+                        <>
+                          <span className="text-2xl mb-1">Harvest</span>
+                          <span className="text-[10px] opacity-80 uppercase tracking-widest">
+                            {liveClaimable > 0 ? "一键领取" : "等待释放"}
+                          </span>
+                        </>
+                      )}
+                    </button>
+                </div>
+              </motion.div>
+              </motion.div>
 
               {/* 3. K线图 */}
               <div className="w-full mt-2">
@@ -986,7 +1057,7 @@ export default function Home() {
 
                     <div className="flex items-center gap-2 mb-2">
                       <p className="text-gray-400 text-sm font-medium">我的直推人数</p>
-                       {/* 提示小图标 */}
+                        {/* 提示小图标 */}
                       <span className="bg-blue-500/20 text-blue-400 text-[10px] px-1.5 py-0.5 rounded">点击查看</span>
                     </div>
 
@@ -1057,7 +1128,7 @@ export default function Home() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                onClick={(e) => e.stopPropagation()} // 防止点卡片内部关闭
+                onClick={(e) => e.stopPropagation()} 
                 className="w-full max-w-md bg-[#16171D] border border-gray-800 rounded-2xl overflow-hidden shadow-2xl"
               >
                 {/* 标题栏 */}
