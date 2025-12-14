@@ -4,8 +4,7 @@ import { NextResponse } from 'next/server';
 // 你的代币合约 (MGT)
 const MGT_MINT = "59eXaVJNG441QW54NTmpeDpXEzkuaRjSLm8M6N4Gpump";
 
-// 🛡️ 保底价格：当所有 API 都挂了时使用 (建议设为当前的预估价)
-// 不要删！这是最后一道防线！
+// 🛡️ 保底价格：当所有 API 都挂了时使用
 const FALLBACK_PRICE = 0.00012; 
 
 // 💰 智能获取价格 (DexScreener -> Jupiter -> 保底)
@@ -27,8 +26,8 @@ async function getMgtPrice() {
     const jupPrice = jupData.data?.[MGT_MINT]?.price;
 
     if (jupPrice) {
-      console.log(`✅ Jupiter 备用价格: $${jupPrice}`);
-      return parseFloat(jupPrice);
+       console.log(`✅ Jupiter 备用价格: $${jupPrice}`);
+       return parseFloat(jupPrice);
     }
 
     // 3. (最后防线) 实在查不到，使用保底价
@@ -108,35 +107,36 @@ export async function POST(request: Request) {
         // B. 更新上级数据
         const { data: refData } = await supabase
             .from('users')
-            .select('locked_reward, total_earned, team_volume, month_volume') // 👈 多查几个字段
+            .select('pending_reward, total_earned')
             .eq('wallet', referrer)
             .single();
         
         if (refData) {
-            // ❌ 旧逻辑：直接给 pending_reward (删掉)
-            // const newReward = (refData.pending_reward || 0) + reward;
-
-            // ✅ 新逻辑：加到 locked_reward (冻结池)
-            const newLocked = (refData.locked_reward || 0) + reward;
-            
-            // 历史总赚依然累加 (为了好看)
+            const newReward = (refData.pending_reward || 0) + reward;
             const newTotalEarned = (refData.total_earned || 0) + reward;
             
-            // 累加本月业绩 (为了考核)
-            const newMonthVolume = (refData.month_volume || 0) + usdValue;
-
-            // 更新数据库
             await supabase.from('users').update({
-                locked_reward: newLocked,   // 💰 钱进冰箱
-                total_earned: newTotalEarned,
-                month_volume: newMonthVolume
+                pending_reward: newReward,
+                total_earned: newTotalEarned
             }).eq('wallet', referrer);
 
-            // RPC 更新总业绩 (保持不变)
+            // C. RPC 安全更新业绩
             const { error: rpcError } = await supabase.rpc('increment_team_volume', {
                 wallet_address: referrer,
                 amount_to_add: usdValue
             });
+
+            if (rpcError) console.error("❌ RPC Error:", rpcError);
+        }
+      } else {
+        // 无上级
+        await supabase.from('transactions').insert({
+            signature,
+            buyer,
+            token_amount: buyAmount,
+            reward_amount: 0,
+            usdt_value: usdValue
+        });
       }
     }
 
