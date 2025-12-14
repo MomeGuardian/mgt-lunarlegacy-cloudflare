@@ -6,11 +6,12 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// 🌏 辅助函数：获取北京时间的日期字符串 (YYYY-MM-DD)
-function getBeijingDateStr(date: Date) {
+// 🌏 辅助：获取北京时间 00:00 的时间戳
+function getBeijingMidnight(date: Date) {
   const utc = date.getTime();
   const beijingTime = new Date(utc + 8 * 60 * 60 * 1000);
-  return beijingTime.toISOString().split('T')[0];
+  beijingTime.setUTCHours(0, 0, 0, 0); // 设为当天 0 点
+  return beijingTime.getTime();
 }
 
 export async function POST(request: Request) {
@@ -29,48 +30,54 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: '暂无冻结奖励' }, { status: 400 });
     }
 
-    // 2. 🕒 校验时间：使用北京时间 (UTC+8) 判断
+    // 2. 🗓️ 计算累计天数 (核心逻辑)
     const now = new Date();
+    // 如果没有上次时间，默认为很久以前 (允许领取)
     const lastTime = user.last_vesting_time ? new Date(user.last_vesting_time) : new Date(0);
 
-    const todayStr = getBeijingDateStr(now);
-    const lastDayStr = getBeijingDateStr(lastTime);
+    // 获取“今天0点”和“上次0点”的时间戳
+    const todayMidnight = getBeijingMidnight(now);
+    const lastMidnight = getBeijingMidnight(lastTime);
 
-    // 如果北京日期一样，说明今天已经领过了
-    if (todayStr === lastDayStr) {
-         return NextResponse.json({ error: '今日额度已领，请北京时间 00:00 后再来' }, { status: 400 });
+    // 算出相差几天 (毫秒差 / 一天的毫秒数)
+    const diffMs = todayMidnight - lastMidnight;
+    const daysPassed = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    // 如果天数 < 1，说明今天已经领过了
+    if (daysPassed < 1) {
+         return NextResponse.json({ error: '今日已领，请明日再来累积' }, { status: 400 });
     }
 
-    // -----------------------------------------------------------
-    // 3. 💰 计算释放金额 (👇 这里加入了扫尾机制)
-    // -----------------------------------------------------------
-    
-    // 🧹 扫尾阈值：剩下不到 10 个时，一次性发完
+    // 3. 💰 计算释放金额 (引入扫尾 + 累积)
     const CLEAR_THRESHOLD = 10; 
-    
     let releaseAmount = 0;
 
     if (user.locked_reward <= CLEAR_THRESHOLD) {
-        // A. 余额很少 -> 触发扫尾 (全给)
+        // A. 余额很少 -> 直接清零
         releaseAmount = user.locked_reward;
     } else {
-        // B. 余额很多 -> 正常释放 (给 1/14)
-        releaseAmount = user.locked_reward / 14;
+        // B. 余额很多 -> (1/14) * 累计天数
+        const dailyBase = user.locked_reward / 14;
+        releaseAmount = dailyBase * daysPassed;
+    }
+
+    // 🛡️ 安全兜底：如果算出来比余额还多 (比如攒了20天)，最多只能领完剩下的
+    if (releaseAmount > user.locked_reward) {
+        releaseAmount = user.locked_reward;
     }
     
-    // 精度修正 (保留4位小数，防止数据库报错)
+    // 精度修正
     releaseAmount = Math.floor(releaseAmount * 10000) / 10000;
 
-    // 🛡️ 最后的底线：如果算出来实在太少 (比如 0.0000)，就不发了，省 Gas
     if (releaseAmount < 0.1) {
-        return NextResponse.json({ error: '可领金额不足 0.1 MGT，请继续积累' }, { status: 400 });
+        return NextResponse.json({ error: '累积金额不足 0.1 MGT，请多攒几天' }, { status: 400 });
     }
 
     // 4. 更新数据库
     const { error } = await supabase.from('users').update({
         locked_reward: user.locked_reward - releaseAmount,
         total_claimed: (user.total_claimed || 0) + releaseAmount,
-        last_vesting_time: now.toISOString() // 更新时间
+        last_vesting_time: now.toISOString() // 更新为当前时间
     }).eq('wallet', wallet);
 
     if (error) throw error;
@@ -80,12 +87,12 @@ export async function POST(request: Request) {
         wallet: wallet,
         amount: releaseAmount,
         status: 'pending',
-        tx_hash: 'daily_vesting_sweep' // 标记一下
+        tx_hash: `accumulated_${daysPassed}_days` // 标记累积了几天
     });
 
     return NextResponse.json({ 
         success: true, 
-        message: `释放成功！(${releaseAmount} MGT)`,
+        message: `成功提取 ${daysPassed} 天的收益！(${releaseAmount} MGT)`,
         released: releaseAmount
     });
 
