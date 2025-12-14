@@ -6,15 +6,10 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const DAILY_RATE = 0.002; // 0.2%
-
 // 🌏 辅助函数：获取北京时间的日期字符串 (YYYY-MM-DD)
 function getBeijingDateStr(date: Date) {
-  // 1. 获取 UTC 时间戳
   const utc = date.getTime();
-  // 2. 加上 8 小时时差 (8 * 60 * 60 * 1000)
   const beijingTime = new Date(utc + 8 * 60 * 60 * 1000);
-  // 3. 返回 ISO 格式的前 10 位 (即日期部分)
   return beijingTime.toISOString().split('T')[0];
 }
 
@@ -34,33 +29,48 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: '暂无冻结奖励' }, { status: 400 });
     }
 
-    // 2. 🕒 核心修改：使用北京时间 (UTC+8) 判断
+    // 2. 🕒 校验时间：使用北京时间 (UTC+8) 判断
     const now = new Date();
-    // 如果没有上次时间，默认为 1970 年 (允许领取)
     const lastTime = user.last_vesting_time ? new Date(user.last_vesting_time) : new Date(0);
 
-    // 获取“北京今天”和“上次领取的北京日期”
     const todayStr = getBeijingDateStr(now);
     const lastDayStr = getBeijingDateStr(lastTime);
 
     // 如果北京日期一样，说明今天已经领过了
     if (todayStr === lastDayStr) {
-        return NextResponse.json({ error: '今日额度已领，请北京时间 00:00 后再来' }, { status: 400 });
+         return NextResponse.json({ error: '今日额度已领，请北京时间 00:00 后再来' }, { status: 400 });
     }
 
-    // 3. 💰 计算释放金额
-    let releaseAmount = user.locked_reward / 14;
+    // -----------------------------------------------------------
+    // 3. 💰 计算释放金额 (👇 这里加入了扫尾机制)
+    // -----------------------------------------------------------
+    
+    // 🧹 扫尾阈值：剩下不到 10 个时，一次性发完
+    const CLEAR_THRESHOLD = 10; 
+    
+    let releaseAmount = 0;
+
+    if (user.locked_reward <= CLEAR_THRESHOLD) {
+        // A. 余额很少 -> 触发扫尾 (全给)
+        releaseAmount = user.locked_reward;
+    } else {
+        // B. 余额很多 -> 正常释放 (给 1/14)
+        releaseAmount = user.locked_reward / 14;
+    }
+    
+    // 精度修正 (保留4位小数，防止数据库报错)
     releaseAmount = Math.floor(releaseAmount * 10000) / 10000;
 
-    if (releaseAmount <= 0) {
-        return NextResponse.json({ error: '金额过小' }, { status: 400 });
+    // 🛡️ 最后的底线：如果算出来实在太少 (比如 0.0000)，就不发了，省 Gas
+    if (releaseAmount < 0.1) {
+        return NextResponse.json({ error: '可领金额不足 0.1 MGT，请继续积累' }, { status: 400 });
     }
 
-    // 4. 更新数据库 (存入当前时间作为记录)
+    // 4. 更新数据库
     const { error } = await supabase.from('users').update({
         locked_reward: user.locked_reward - releaseAmount,
         total_claimed: (user.total_claimed || 0) + releaseAmount,
-        last_vesting_time: now.toISOString() // 存的时候还是存标准时间，方便国际化
+        last_vesting_time: now.toISOString() // 更新时间
     }).eq('wallet', wallet);
 
     if (error) throw error;
@@ -70,12 +80,12 @@ export async function POST(request: Request) {
         wallet: wallet,
         amount: releaseAmount,
         status: 'pending',
-        tx_hash: 'daily_vesting_bj'
+        tx_hash: 'daily_vesting_sweep' // 标记一下
     });
 
     return NextResponse.json({ 
         success: true, 
-        message: `今日释放成功！(${releaseAmount} MGT)`,
+        message: `释放成功！(${releaseAmount} MGT)`,
         released: releaseAmount
     });
 
