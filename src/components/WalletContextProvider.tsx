@@ -8,7 +8,7 @@ import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adap
 import "@solana/wallet-adapter-react-ui/styles.css";
 
 const WalletContextProvider: FC<{ children: ReactNode }> = ({ children }) => {
-const endpoint = "https://rpc.mgt-token.company/b0b0db6c879f5ade13b4e2087c84f5d0c8f61739";
+const endpoint = "https://mainnet.helius-rpc.com/?api-key=f6ac37ee-435b-440c-9114-87bf7783319b";
 
   const wallets = useMemo(
     () => [
@@ -52,4 +52,5 @@ const endpoint = "https://rpc.mgt-token.company/b0b0db6c879f5ade13b4e2087c84f5d0
     </ConnectionProvider>
   );  
 };
+
 export default WalletContextProvider;
