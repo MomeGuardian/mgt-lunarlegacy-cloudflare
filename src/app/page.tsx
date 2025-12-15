@@ -58,7 +58,7 @@ const translations = {
     intro_core_title: "Solana × 全球非遗",
     intro_core_desc: "全球首个将 Solana 高速区块链技术与【全球非物质文化遗产】深度融合的数字资产。",
     intro_safe_title: "生态落地 & 兑换",
-    intro_safe_desc: "拒绝空气币！$MGT 打通虚实边界，代币可直接用于【兑换全球非遗珍品】与传承体验。",
+    intro_safe_desc: "$MGT 打通虚实边界，代币可直接用于【兑换全球非遗珍品】与传承体验。",
     intro_ca_label: "合约地址 (点击复制)",
 
     // --- 其他 ---
