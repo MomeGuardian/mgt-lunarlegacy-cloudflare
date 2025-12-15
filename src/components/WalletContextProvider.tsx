@@ -8,7 +8,7 @@ import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adap
 import "@solana/wallet-adapter-react-ui/styles.css";
 
 const WalletContextProvider: FC<{ children: ReactNode }> = ({ children }) => {
-const endpoint = "https://divine-orbital-dawn.solana-mainnet.quiknode.pro/30487788f9c117978bd9ced0e23044c9c7ae0c36";
+const endpoint = "https://rpc.mgt-token.company/30487788f9c117978bd9ced0e23044c9c7ae0c36";
 
   const wallets = useMemo(
     () => [
