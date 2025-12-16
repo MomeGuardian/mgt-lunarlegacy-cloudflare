@@ -272,7 +272,6 @@ export default function Home() {
   
   const [lastReleasedAmount, setLastReleasedAmount] = useState(0); 
 
-  // ✅✅✅ 修复：在这里补上了 countDownStr 的声明，解决 ReferenceError
   const [countDownStr, setCountDownStr] = useState("");
 
   const [isBinding, setIsBinding] = useState(false); 
@@ -688,7 +687,7 @@ export default function Home() {
   return (
     <AnimatePresence mode="popLayout">
       <motion.div
-        key={connected ? 'connected' : 'disconnected'}
+        key="home-page"
         className="min-h-screen grok-starry-bg flex flex-col justify-between"
         variants={containerVariants}
         initial="hidden"
@@ -1019,59 +1018,8 @@ export default function Home() {
             )}
         </AnimatePresence>
           
-        {/* 主容器 */}
+        {/* 主容器：直通模式 (Direct Mode) */}
         <div className="container mx-auto px-4 pt-16 md:pt-20 pb-10 text-center flex-grow"> 
-          {!connected ? (
-            <motion.div 
-              variants={containerVariants} 
-              className="max-w-2xl mx-auto mt-12 md:mt-20"
-            >
-              <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent leading-tight py-2">
-                {t.hero_title}
-              </h1>
-
-              {/* 社交媒体 & CA 复制栏 */}
-              <div className="flex flex-col md:flex-row items-center justify-center gap-3 mt-4 px-4">
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(contractAddress);
-                    toast.success(t.ca_copied, {
-                      position: "top-center",
-                      duration: 2000,
-                      icon: '💊',
-                      style: {
-                        marginTop: "40vh", 
-                        minWidth: '260px',
-                        background: 'rgba(17, 24, 39, 0.95)',
-                        backdropFilter: 'blur(16px)',
-                        color: '#fff',
-                        border: '1px solid rgba(34, 197, 94, 0.6)',
-                        padding: '20px 30px',
-                        borderRadius: '24px',
-                        boxShadow: '0 0 50px -10px rgba(34, 197, 94, 0.5)',
-                        fontWeight: 'bold',
-                        fontSize: '18px',
-                        textAlign: 'center',
-                      },
-                    });
-                  }}
-                  className="flex items-center space-x-2 bg-gray-800/50 hover:bg-gray-800 border border-gray-600 rounded-full px-4 py-1.5 transition-all active:scale-95 group"
-                >
-                  <span className="text-gray-400 text-xs font-mono">CA:</span>
-                  <span className="text-gray-200 text-xs font-mono font-bold group-hover:text-green-400 transition-colors">
-                    {`${contractAddress.slice(0, 4)}...pump`}
-                  </span>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                </button>
-              </div>
-
-              <p className="text-lg md:text-xl text-gray-300 mt-6 px-4">
-                {t.hero_desc} <span className="text-purple-400 font-bold">{t.hero_desc_highlight}</span> {t.hero_desc_end}
-              </p>
-            </motion.div>
-          ) : (
             <motion.div variants={containerVariants} className="max-w-5xl mx-auto space-y-6 md:space-y-8">
               
               {/* 1. 购买按钮 */}
@@ -1126,7 +1074,7 @@ export default function Home() {
 
                 <div className="flex items-baseline gap-1">
                   <span className="text-4xl font-black text-white tracking-tight relative z-10">
-                    ${teamVolume.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {connected ? `$${teamVolume.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00"}
                   </span>
                 </div>
               </div>
@@ -1153,7 +1101,7 @@ export default function Home() {
                     </div>
                     <div className="flex items-baseline gap-1 opacity-70">
                       <span className="text-lg font-bold text-gray-300 font-mono">
-                        {lockedReward.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {connected ? lockedReward.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00"}
                       </span>
                       <span className="text-xs text-gray-600">MGT</span>
                     </div>
@@ -1182,7 +1130,7 @@ export default function Home() {
                     </div>
                     <div className="flex items-baseline gap-1">
                       <span className={`text-3xl md:text-4xl font-black tracking-tight font-mono ${liveClaimable > 0 ? 'text-white' : 'text-gray-500'}`}>
-                        {liveClaimable > 0 ? liveClaimable.toFixed(4) : "0.0000"}
+                        {connected && liveClaimable > 0 ? liveClaimable.toFixed(4) : "0.0000"}
                       </span>
                       <span className="text-sm text-gray-600 font-bold">MGT</span>
                     </div>
@@ -1193,10 +1141,10 @@ export default function Home() {
                 <div>
                       <button
                       onClick={claimReward}
-                      disabled={claiming || liveClaimable <= 0.1}
+                      disabled={!connected || claiming || liveClaimable <= 0.1}
                       className={`
                         relative overflow-hidden px-5 py-6 rounded-xl font-bold text-sm transition-all shadow-lg flex flex-col items-center justify-center min-w-[110px]
-                        ${(claiming || liveClaimable <= 0)
+                        ${(!connected || claiming || liveClaimable <= 0)
                           ? "bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700"
                           : "bg-gradient-to-br from-green-500 to-emerald-700 hover:scale-105 text-white shadow-green-500/20 border border-green-400/20"
                         }
@@ -1241,7 +1189,10 @@ export default function Home() {
                         </div>
                     ) : (
                         <button 
-                            onClick={() => setIsBinding(true)}
+                            onClick={() => {
+                                if (!connected) toast.error("请先连接钱包");
+                                else setIsBinding(true);
+                            }}
                             className="flex items-center space-x-2 bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/50 px-4 py-1.5 rounded-full transition-all group"
                         >
                             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
@@ -1271,7 +1222,7 @@ export default function Home() {
 
                     <div className="flex items-end gap-2">
                       <h3 className="text-4xl font-black text-white tracking-tight">
-                        {myRefs}
+                        {connected ? myRefs : 0}
                       </h3>
                       <span className="text-gray-500 mb-1.5 font-bold">人</span>
                     </div>
@@ -1281,12 +1232,16 @@ export default function Home() {
                     <p className="text-gray-400 text-xs md:text-sm mb-3">{t.referral_link}</p>
                     <button
                         onClick={() => {
+                          if (!connected) {
+                              toast.error("请先连接钱包");
+                              return;
+                          }
                           const shareText = `${myLink}`;
                           navigator.clipboard.writeText(shareText);
                           toast.success(t.link_copied);
                         }}
-                        disabled={!myLink} 
-                        className="w-full md:w-auto px-6 py-2 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 rounded-full text-sm font-bold text-white shadow-lg transition-all transform active:scale-95 disabled:opacity-50"
+                        disabled={!connected} 
+                        className="w-full md:w-auto px-6 py-2 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 rounded-full text-sm font-bold text-white shadow-lg transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {t.copy_link}
                       </button>
@@ -1295,7 +1250,6 @@ export default function Home() {
               </motion.div>
 
             </motion.div>
-          )}
         </div>
 
         {/* Footer */}
