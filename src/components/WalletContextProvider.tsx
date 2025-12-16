@@ -40,12 +40,7 @@ const endpoint = "https://mgt-lunarlegacy.2824889114.workers.dev";
         onError={onError}
       >
         <WalletModalProvider>
-            {mounted ? children : (
-                <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a] text-white">
-                    <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                    <div className="text-xs text-gray-400 font-mono">Initializing MGT...</div>
-                </div>
-            )}
+          {children}
         </WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>
