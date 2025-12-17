@@ -4,14 +4,29 @@ import { NextResponse } from 'next/server';
 export const runtime = 'edge';
 
 const MGT_MINT = "59eXaVJNG441QW54NTmpeDpXEzkuaRjSLm8M6N4Gpump";
-const FALLBACK_PRICE = 0.00012; 
+// 🛡️ 保底价格：万一 API 全挂了，用这个价格算业绩
+const FALLBACK_PRICE = 0.00013; 
 
+// ⚡️ 1. 极速获取价格 (带 2秒 超时控制，防止 Helius 报错)
 async function getMgtPrice() {
   try {
-    const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${MGT_MINT}`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2秒后强制断开
+
+    const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${MGT_MINT}`, {
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+
     const data = await res.json();
-    return parseFloat(data.pairs?.[0]?.priceUsd || FALLBACK_PRICE);
+    const price = parseFloat(data.pairs?.[0]?.priceUsd);
+    
+    if (price && !isNaN(price)) return price;
+    throw new Error("无效价格");
+
   } catch (error) {
+    console.warn("⚠️ 价格查询超时或失败，启用保底价:", FALLBACK_PRICE);
     return FALLBACK_PRICE;
   }
 }
@@ -25,14 +40,18 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    if (!body || !Array.isArray(body)) return NextResponse.json({ message: 'No transactions' });
+    if (!body || !Array.isArray(body)) return NextResponse.json({ message: 'No tx' });
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
+    // 2. 获取价格 (极速版)
     const currentPrice = await getMgtPrice();
+
+    // 3. 处理逻辑
+    const updates = [];
 
     for (const tx of body) {
       if (tx.transactionError) continue;
@@ -40,78 +59,68 @@ export async function POST(request: Request) {
       const signature = tx.signature;
       const transfers = tx.tokenTransfers || [];
 
-      // 🔥 核心修复 1: 过滤出所有涉及 MGT 的转账 (可能有好几条)
+      // 🔥 核心修复：OKX 兼容逻辑 (不看 feePayer，只看谁收到了币)
       const mgtTransfers = transfers.filter((t: any) => t.mint === MGT_MINT);
 
-      if (mgtTransfers.length === 0) continue;
-
-      // 🔥 核心修复 2: 遍历每一条转账，看“接收者”是不是我们的用户
       for (const transfer of mgtTransfers) {
-          const receiverWallet = transfer.toUserAccount; // 收钱的人
+          const receiverWallet = transfer.toUserAccount; // 真正的买家
           const amount = parseFloat(transfer.tokenAmount);
           const usdValue = amount * currentPrice;
 
-          // 过滤小额垃圾
-          if (usdValue < 0.1) continue;
+          if (usdValue < 0.1) continue; // 过滤垃圾交易
 
-          // 查重 (防止重复计算)
-          // 注意：这里我们用 signature + receiver 做组合查重，防止一笔交易分两笔转给同一个人导致报错
-          // 简化版：直接查 signature，如果已存在则跳过整单 (通常一单买入只会涉及一次用户收币)
-          const { data: exist } = await supabase.from('transactions').select('id').eq('signature', signature).single();
-          if (exist) {
-              console.log(`⚠️ 交易 ${signature.slice(0,6)} 已处理过`);
-              break; // 跳出当前交易循环
-          }
+          // 把费时的数据库操作打包，稍后并发执行
+          updates.push(async () => {
+              // 查户口
+              const { data: user } = await supabase
+                .from('users')
+                .select('referrer')
+                .eq('wallet', receiverWallet)
+                .single();
 
-          // 查户口：这个收钱的人(receiverWallet)，有没有上级？
-          const { data: user } = await supabase
-            .from('users')
-            .select('referrer')
-            .eq('wallet', receiverWallet)
-            .single();
+              if (user?.referrer) {
+                  const referrer = user.referrer;
+                  const reward = amount * 0.05; // 5%
 
-          // 只有当“收钱的人”有上级时，才触发奖励
-          if (user?.referrer) {
-              const referrer = user.referrer;
-              const reward = amount * 0.05; // 5%
+                  console.log(`🚀 捕获业绩: ${referrer} +$${usdValue.toFixed(2)}`);
 
-              console.log(`🚀 捕获买入: 用户 ${receiverWallet} 买入 (上级: ${referrer})`);
-              console.log(`💰 发放奖励: ${reward} MGT (价值 $${usdValue.toFixed(2)})`);
+                  // A. 查重并记录
+                  const { error: insertError } = await supabase.from('transactions').insert({
+                      signature,
+                      buyer: receiverWallet,
+                      referrer: referrer,
+                      token_amount: amount,
+                      reward_amount: reward,
+                      usdt_value: usdValue
+                  });
 
-              // A. 记录流水
-              await supabase.from('transactions').insert({
-                  signature,
-                  buyer: receiverWallet,
-                  referrer: referrer,
-                  token_amount: amount,
-                  reward_amount: reward,
-                  usdt_value: usdValue
-              });
-
-              // B. 更新业绩 (RPC)
-              await supabase.rpc('increment_team_volume', {
-                  wallet_address: referrer,
-                  amount_to_add: usdValue
-              });
-
-              // C. 更新奖励余额 (RPC) - 用我们之前写的那个 SQL 函数！
-              const { error: rpcError } = await supabase.rpc('increment_pending_reward', {
-                  wallet_address: referrer,
-                  reward_to_add: reward
-              });
-
-              if (rpcError) console.error("❌ RPC更新奖励失败:", rpcError);
-              
-              // 找到一个有效买入后，通常这笔交易就处理完了，break 防止重复计算
-              break; 
-          }
+                  if (!insertError) {
+                      // B. 加业绩 (RPC)
+                      await supabase.rpc('increment_team_volume', {
+                          wallet_address: referrer, 
+                          amount_to_add: usdValue
+                      });
+                      // C. 加奖励 (RPC)
+                      await supabase.rpc('increment_pending_reward', {
+                          wallet_address: referrer, 
+                          reward_to_add: reward
+                      });
+                  } else {
+                      console.log("⚠️ 交易已存在，跳过奖励发放");
+                  }
+              }
+          });
       }
     }
+
+    // 4. 并发执行所有数据库操作，最大限度节省时间
+    await Promise.allSettled(updates.map(fn => fn()));
 
     return NextResponse.json({ success: true });
 
   } catch (err: any) {
     console.error('Webhook Error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    // 即使出错也返回 200，防止 Helius 疯狂重试
+    return NextResponse.json({ success: true, error: err.message });
   }
 }
