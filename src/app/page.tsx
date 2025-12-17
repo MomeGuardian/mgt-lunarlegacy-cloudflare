@@ -622,42 +622,45 @@ export default function Home() {
   // ✅ 3. 收取释放
   // ------------------------------------------------------------------
   const claimReward = async () => {
+    // 1. 基础检查
     if (!publicKey) return;
-    if (liveClaimable <= 0.0001) { // 稍微给点容错
+    // 允许小额误差，余额大于 0.1 才能领
+    if (lockedReward <= 0.1) {
         toast.error("暂无奖励可释放");
         return;
     }
 
+    // 2. 锁定按钮，防止重复点击
     setClaiming(true);
-    const toastId = toast.loading("正在链上确认...");
+    const toastId = toast.loading("正在呼叫智能合约自动打款...");
 
     try {
-      // ❌ 不要再调用 /api/claim 了，那个路不通
-      // const res = await fetch("/api/claim", ...);
+      // ✅ 3. 呼叫后端 API (这是唯一的核心逻辑)
+      const res = await fetch("/api/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wallet: publicKey.toBase58() }),
+      });
+      
+      const data = await res.json();
 
-      // ✅ 1. 计算新的余额
-      const newLockedReward = Math.max(0, lockedReward - liveClaimable);
+      // 4. 处理错误
+      if (!res.ok) {
+        throw new Error(data.error || "请求失败");
+      }
 
-      // ✅ 2. 直接指挥 Supabase 改数据
-      const { error } = await supabase
-        .from('users')
-        .update({ 
-            locked_reward: newLockedReward,
-            last_vesting_time: new Date().toISOString() // 记录这次领取的时间
-        })
-        .eq('wallet', publicKey.toBase58());
-
-      if (error) throw error;
-
-      // ✅ 3. 界面更新
-      setLastReleasedAmount(liveClaimable); 
-      setLockedReward(newLockedReward);
-      setLiveClaimable(0); 
+      // ✅ 5. 成功！更新界面
+      // 后端返回了实际转账金额 (data.amount)
+      setLastReleasedAmount(data.amount || 0); 
+      
+      // 因为是全部提取，直接清零
+      setLockedReward(0); 
+      setLiveClaimable(0);
       
       setShowClaimSuccess(true);
       toast.dismiss(toastId); 
 
-      // 撒花庆祝 🎉
+      // 🎉 撒花庆祝
       confetti({
         particleCount: 150,
         spread: 70,
@@ -669,6 +672,7 @@ export default function Home() {
       console.error("Claim Error:", err);
       toast.error(`领取失败: ${err.message}`, { id: toastId });
     } finally {
+      // 6. 解锁按钮
       setClaiming(false);
     }
   };
