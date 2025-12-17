@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
+export const runtime = 'edge';
+
 // 你的代币合约 (MGT)
 const MGT_MINT = "59eXaVJNG441QW54NTmpeDpXEzkuaRjSLm8M6N4Gpump";
 
@@ -26,8 +28,8 @@ async function getMgtPrice() {
     const jupPrice = jupData.data?.[MGT_MINT]?.price;
 
     if (jupPrice) {
-       console.log(`✅ Jupiter 备用价格: $${jupPrice}`);
-       return parseFloat(jupPrice);
+      console.log(`✅ Jupiter 备用价格: $${jupPrice}`);
+      return parseFloat(jupPrice);
     }
 
     // 3. (最后防线) 实在查不到，使用保底价
