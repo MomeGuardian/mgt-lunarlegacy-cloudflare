@@ -20,59 +20,45 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '不能绑定自己为上级' }, { status: 400 });
     }
 
-    // --- 🕵️‍♂️ 安检 3: 验证签名 (核心安全逻辑) ---
+    // --- 🕵️‍♂️ 安检 3: 验证签名 (保留这个核心安全逻辑！) ---
     try {
-      // 1. 将 Base58 格式的签名和钱包地址转回 Uint8Array
       const signatureUint8 = bs58.decode(signature);
       const walletUint8 = bs58.decode(wallet);
-      // 2. 将消息转为 Uint8Array
       const messageUint8 = new TextEncoder().encode(message);
       
-      // 3. 使用 NaCl 验证签名
       const isValid = nacl.sign.detached.verify(messageUint8, signatureUint8, walletUint8);
       
       if (!isValid) {
-        return NextResponse.json({ error: '签名验证失败，请勿伪造请求' }, { status: 401 });
+        return NextResponse.json({ error: '签名验证失败' }, { status: 401 });
       }
     } catch (e) {
       return NextResponse.json({ error: '签名格式错误' }, { status: 400 });
     }
 
-    // --- 💾 数据库操作 ---
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // --- 💾 数据库操作 (这是唯一需要修改的地方) ---
+    // 我们不再在前端手动查重，而是把任务交给刚才写的 SQL 函数
+    
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY! // 必须用 Service Role Key
+    );
 
-    // 1. 检查用户是否已经有上级 (防篡改)
-    const { data: user, error: fetchError } = await supabase
-      .from('users')
-      .select('referrer')
-      .eq('wallet', wallet)
-      .single();
+    // 🔥 调用智能函数 (防互刷 + 自动计数 + 查重)
+    const { data, error } = await supabase.rpc('bind_referrer', {
+      user_wallet: wallet,
+      referrer_wallet: referrer
+    });
 
-    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 是查无此人，忽略
-      throw fetchError;
+    if (error) {
+      console.error("RPC Error:", error);
+      return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });
     }
 
-    // 如果已经有上级，且上级不为空，则拒绝修改
-    if (user?.referrer) {
-      return NextResponse.json({ error: '您已经绑定过上级了，无法更改' }, { status: 400 });
+    // 检查 SQL 函数的返回结果
+    // 格式: { success: false, message: "..." }
+    if (!data.success) {
+        return NextResponse.json({ error: data.message }, { status: 400 });
     }
-
-    // 2. 写入绑定关系
-    // 注意：这里我们用 upsert，如果用户不存在（login 漏了）就顺便创建，确保万无一失
-    const { error: updateError } = await supabase
-      .from('users')
-      .upsert({ 
-        wallet: wallet, 
-        referrer: referrer 
-      }, { onConflict: 'wallet' }); // 仅更新 referrer，不影响其他字段
-
-    if (updateError) throw updateError;
-
-    // 3. (可选) 增加上级的直推计数 +1
-    // 这一步可以用 SQL Trigger 做，也可以简单在这里先读后写，或者暂不处理(等计算业绩时再聚合)
-    // 为了性能，我们暂时只记录关系。人数统计建议在 Leaderboard API 里实时 count。
 
     return NextResponse.json({ success: true, message: '绑定成功' });
 
