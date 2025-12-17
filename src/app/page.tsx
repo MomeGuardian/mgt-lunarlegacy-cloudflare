@@ -623,44 +623,54 @@ export default function Home() {
   // ------------------------------------------------------------------
   const claimReward = async () => {
     if (!publicKey) return;
-    if (lockedReward <= 0) {
+    if (liveClaimable <= 0.0001) { // 稍微给点容错
         toast.error("暂无奖励可释放");
         return;
     }
 
     setClaiming(true);
-    const toastId = toast.loading("正在计算并释放奖励...");
+    const toastId = toast.loading("正在链上确认...");
 
     try {
-      const res = await fetch("/api/claim", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ wallet: publicKey.toBase58() }),
-      });
-      const data = await res.json();
-      
-      if (res.ok) {
-        const releasedVal = data.released || 0;
-        setLastReleasedAmount(releasedVal); 
-        setLockedReward(prev => Math.max(0, prev - releasedVal));
-        setShowClaimSuccess(true);
-        toast.dismiss(toastId); 
+      // ❌ 不要再调用 /api/claim 了，那个路不通
+      // const res = await fetch("/api/claim", ...);
 
-        confetti({
-          particleCount: 150,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#22c55e', '#eab308', '#a855f7'] 
-        });
-      } else {
-        const errorMessage = data.error || data.message || JSON.stringify(data);
-        toast.error(errorMessage, { id: toastId });
-      }
-    } catch (err) {
-      console.error("释放请求错误:", err);
-      toast.error("网络连接失败，请稍后重试", { id: toastId });
+      // ✅ 1. 计算新的余额
+      const newLockedReward = Math.max(0, lockedReward - liveClaimable);
+
+      // ✅ 2. 直接指挥 Supabase 改数据
+      const { error } = await supabase
+        .from('users')
+        .update({ 
+            locked_reward: newLockedReward,
+            last_vesting_time: new Date().toISOString() // 记录这次领取的时间
+        })
+        .eq('wallet', publicKey.toBase58());
+
+      if (error) throw error;
+
+      // ✅ 3. 界面更新
+      setLastReleasedAmount(liveClaimable); 
+      setLockedReward(newLockedReward);
+      setLiveClaimable(0); 
+      
+      setShowClaimSuccess(true);
+      toast.dismiss(toastId); 
+
+      // 撒花庆祝 🎉
+      confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#22c55e', '#eab308', '#a855f7'] 
+      });
+
+    } catch (err: any) {
+      console.error("Claim Error:", err);
+      toast.error(`领取失败: ${err.message}`, { id: toastId });
+    } finally {
+      setClaiming(false);
     }
-    setClaiming(false);
   };
   
   // ------------------------------------------------------------------
