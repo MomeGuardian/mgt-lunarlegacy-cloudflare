@@ -14,7 +14,9 @@ async function getMgtPrice() {
     const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${MGT_MINT}`, { signal: controller.signal });
     clearTimeout(timeoutId);
     const data = await res.json();
-    return parseFloat(data.pairs?.[0]?.priceUsd || FALLBACK_PRICE);
+    const price = parseFloat(data.pairs?.[0]?.priceUsd);
+    if (price && !isNaN(price)) return price;
+    return FALLBACK_PRICE;
   } catch (error) {
     return FALLBACK_PRICE;
   }
@@ -40,104 +42,88 @@ export async function POST(request: Request) {
 
     for (const tx of body) {
       if (tx.transactionError) continue;
-      const signature = tx.signature;
-      const transfers = tx.tokenTransfers || [];
 
-      // 1. 过滤出 MGT 的所有变动
+      const signature = tx.signature;
+      
+      // 🛡️ 查重第一关：如果这笔交易已经处理过，直接跳过整单
+      // 这能防止 Helius 重复推送导致的翻倍
+      const { data: exist } = await supabase.from('transactions').select('id').eq('signature', signature).single();
+      if (exist) {
+          console.log(`⚠️ 交易已存在，跳过: ${signature.slice(0,6)}`);
+          continue;
+      }
+
+      const transfers = tx.tokenTransfers || [];
+      // 过滤出 MGT 的转账
       const mgtTransfers = transfers.filter((t: any) => t.mint === MGT_MINT);
       if (mgtTransfers.length === 0) continue;
 
-      // 2. 统计每个钱包的【净变动量】 (Net Change)
-      // 一个交易里可能既有进又有出，要算总账
+      // 🧮 核心修复：计算“净余额变动” (Net Balance Change)
+      // 不管中间转了多少次，我们只算每个钱包最终多了多少钱
       const balanceChanges: Record<string, number> = {};
 
       for (const t of mgtTransfers) {
           const amount = parseFloat(t.tokenAmount);
-          
-          // 入账 (Buy/Receive)
+          // 收钱：加
           if (t.toUserAccount) {
               balanceChanges[t.toUserAccount] = (balanceChanges[t.toUserAccount] || 0) + amount;
           }
-          // 出账 (Sell/Send)
+          // 出钱：减 (虽然这里主要是买入，但防止路由中转导致重复计算)
           if (t.fromUserAccount) {
               balanceChanges[t.fromUserAccount] = (balanceChanges[t.fromUserAccount] || 0) - amount;
           }
       }
 
-      // 3. 遍历变动，处理水位线逻辑
-      for (const [wallet, changeAmount] of Object.entries(balanceChanges)) {
-          // 忽略微小变动
-          if (Math.abs(changeAmount * currentPrice) < 0.01) continue;
+      // 遍历所有发生了资金变动的钱包
+      for (const [wallet, netAmount] of Object.entries(balanceChanges)) {
+          // 只有“净买入” (余额增加) 且金额有效时才处理
+          const usdValue = netAmount * currentPrice;
+          
+          if (netAmount <= 0 || usdValue < 0.1) continue;
 
           updates.push(async () => {
-              // 查用户数据 (含水位线)
+              // 1. 查这个钱包是不是我们的用户
               const { data: user } = await supabase
-                  .from('users')
-                  .select('referrer, net_mgt_holding, max_mgt_holding')
-                  .eq('wallet', wallet)
-                  .single();
+                .from('users')
+                .select('referrer')
+                .eq('wallet', wallet)
+                .single();
 
-              // 如果不是用户，直接跳过 (比如是路由合约)
-              if (!user) return;
+              // 2. 如果是用户且有上级
+              if (user && user.referrer) {
+                  const referrer = user.referrer;
+                  const reward = netAmount * 0.05; // 5%
 
-              const currentNet = user.net_mgt_holding || 0;
-              const currentMax = user.max_mgt_holding || 0;
-              
-              // 计算新的持仓量
-              const newNet = currentNet + changeAmount;
-              
-              // 准备更新数据库的数据
-              let updateData: any = { net_mgt_holding: newNet };
-              let rewardableAmount = 0;
-
-              // 🟢 情况 A: 净买入，且突破历史新高 (发奖!)
-              if (changeAmount > 0 && newNet > currentMax) {
-                  // 只奖励【超过历史最高】的那部分
-                  // 比如: 历史高点1000，跌到0，买了1200。奖励 = 1200 - 1000 = 200 (不是1200!)
-                  // 如果: 历史高点1000，当前1000，买了500。奖励 = 1500 - 1000 = 500。
+                  console.log(`🎯 净买入结算: ${wallet} +${netAmount} MGT`);
                   
-                  // 公式：本次有效奖励量 = 新持仓 - max(旧持仓, 旧历史高点)
-                  // 简化理解：我们只把 max_mgt_holding 推高。推高了多少，就奖励多少。
-                  const amountPushingCeiling = newNet - currentMax;
-                  
-                  rewardableAmount = amountPushingCeiling;
-                  
-                  // 更新历史最高水位
-                  updateData.max_mgt_holding = newNet;
+                  // A. 插入流水 (利用数据库唯一索引做第二道防线)
+                  const { error: insertError } = await supabase.from('transactions').insert({
+                      signature, // 唯一键
+                      buyer: wallet,
+                      referrer: referrer,
+                      token_amount: netAmount, // 记录净买入量
+                      reward_amount: reward,
+                      usdt_value: usdValue
+                  });
 
-                  console.log(`📈 水位突破: ${wallet} 新高 ${newNet} (原 ${currentMax}), 有效增量 ${rewardableAmount}`);
-              } 
-              // 🔴 情况 B: 卖出，或者买入但没破新高 (只记账，不发奖)
-              else {
-                  console.log(`📉 水位波动: ${wallet} 变动 ${changeAmount}, 当前 ${newNet}, 未破高点 ${currentMax}`);
-              }
-
-              // 执行数据库更新 (记录最新的持仓和水位)
-              await supabase.from('users').update(updateData).eq('wallet', wallet);
-
-              // 🔥 发放奖励 (只有当 rewardableAmount > 0 时)
-              if (rewardableAmount > 0 && user.referrer) {
-                  const usdValue = rewardableAmount * currentPrice;
-                  const reward = rewardableAmount * 0.05; // 5%
-
-                  // 再次检查金额门槛
-                  if (usdValue >= 0.1) {
-                      console.log(`💰 触发防刷奖励: 给 ${user.referrer} 发 ${reward} MGT (基于净增量 ${rewardableAmount})`);
-
-                      // 记录流水 (标记为 Anti-Wash)
-                      await supabase.from('transactions').insert({
-                          signature,
-                          buyer: wallet,
-                          referrer: user.referrer,
-                          token_amount: rewardableAmount, // 记的是有效增量
-                          reward_amount: reward,
-                          usdt_value: usdValue,
-                          status: 'processed_anti_wash'
+                  // B. 只有插入成功(不重复)才发钱
+                  if (!insertError) {
+                      console.log(`💰 发放奖励: ${referrer} +${reward}`);
+                      
+                      // 更新业绩
+                      await supabase.rpc('increment_team_volume', {
+                          wallet_address: referrer, 
+                          amount_to_add: usdValue
                       });
-
-                      // 加钱
-                      await supabase.rpc('increment_team_volume', { wallet_address: user.referrer, amount_to_add: usdValue });
-                      await supabase.rpc('increment_pending_reward', { wallet_address: user.referrer, reward_to_add: reward });
+                      
+                      // 🔥 更新奖励 (修复不显示的问题)
+                      // 务必确保 increment_pending_reward 函数在数据库里是存在的
+                      await supabase.rpc('increment_pending_reward', {
+                          wallet_address: referrer, 
+                          reward_to_add: reward
+                      });
+                  } else {
+                      console.log("⚠️ 数据库查重拦截，防止重复发奖");
                   }
               }
           });
