@@ -10,17 +10,8 @@ async function getMgtPrice() {
   try {
     const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${MGT_MINT}`);
     const data = await res.json();
-    const pair = data.pairs?.[0]; 
-    if (pair?.priceUsd) return parseFloat(pair.priceUsd);
-
-    const jupRes = await fetch(`https://api.jup.ag/price/v2?ids=${MGT_MINT}`);
-    const jupData = await jupRes.json();
-    const jupPrice = jupData.data?.[MGT_MINT]?.price;
-    if (jupPrice) return parseFloat(jupPrice);
-
-    return FALLBACK_PRICE; 
+    return parseFloat(data.pairs?.[0]?.priceUsd || FALLBACK_PRICE);
   } catch (error) {
-    console.error("❌ 价格 API 失败:", error);
     return FALLBACK_PRICE;
   }
 }
@@ -29,17 +20,11 @@ export async function POST(request: Request) {
   try {
     // 1. 验证
     const { searchParams } = new URL(request.url);
-    const secret = searchParams.get('secret');
-    if (secret !== process.env.HELIUS_WEBHOOK_SECRET) {
+    if (searchParams.get('secret') !== process.env.HELIUS_WEBHOOK_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 2. 解析
     const body = await request.json();
-    
-    // 🕵️‍♂️ [Debug] 打印收到的原始数据 (在 Cloudflare Logs 里能看到)
-    console.log("📩 Helius Webhook 收到的数据:", JSON.stringify(body).slice(0, 500)); 
-
     if (!body || !Array.isArray(body)) return NextResponse.json({ message: 'No transactions' });
 
     const supabase = createClient(
@@ -53,81 +38,73 @@ export async function POST(request: Request) {
       if (tx.transactionError) continue;
 
       const signature = tx.signature;
-      
-      // ✅ 修正逻辑：先找“谁收到了 MGT”，而不是先定死 feePayer
       const transfers = tx.tokenTransfers || [];
-      const mgtTransfer = transfers.find((t: any) => t.mint === MGT_MINT);
 
-      if (!mgtTransfer) {
-          console.log(`⚠️ 跳过: 交易 ${signature.slice(0,8)} 中没有 MGT 转账`);
-          continue;
-      }
+      // 🔥 核心修复 1: 过滤出所有涉及 MGT 的转账 (可能有好几条)
+      const mgtTransfers = transfers.filter((t: any) => t.mint === MGT_MINT);
 
-      // 🎯 核心修正：收币的人才是真正的 Buyer (不管是谁付的 Gas)
-      const buyer = mgtTransfer.toUserAccount; 
-      const buyAmount = parseFloat(mgtTransfer.tokenAmount);
+      if (mgtTransfers.length === 0) continue;
 
-      // 查重
-      const { data: exist } = await supabase.from('transactions').select('signature').eq('signature', signature).single();
-      if (exist) {
-          console.log(`⚠️ 跳过: 交易 ${signature.slice(0,8)} 已处理过`);
-          continue;
-      }
+      // 🔥 核心修复 2: 遍历每一条转账，看“接收者”是不是我们的用户
+      for (const transfer of mgtTransfers) {
+          const receiverWallet = transfer.toUserAccount; // 收钱的人
+          const amount = parseFloat(transfer.tokenAmount);
+          const usdValue = amount * currentPrice;
 
-      const usdValue = buyAmount * currentPrice;
-      console.log(`🚀 捕获买入: 用户 ${buyer} 买入 ${buyAmount} MGT (价值 $${usdValue.toFixed(2)})`);
+          // 过滤小额垃圾
+          if (usdValue < 0.1) continue;
 
-      // 5. 查找上级并分账
-      const { data: user } = await supabase.from('users').select('referrer').eq('wallet', buyer).single();
+          // 查重 (防止重复计算)
+          // 注意：这里我们用 signature + receiver 做组合查重，防止一笔交易分两笔转给同一个人导致报错
+          // 简化版：直接查 signature，如果已存在则跳过整单 (通常一单买入只会涉及一次用户收币)
+          const { data: exist } = await supabase.from('transactions').select('id').eq('signature', signature).single();
+          if (exist) {
+              console.log(`⚠️ 交易 ${signature.slice(0,6)} 已处理过`);
+              break; // 跳出当前交易循环
+          }
 
-      if (user?.referrer) {
-        const referrer = user.referrer;
-        // 只有大于 0.1 U 的交易才记录，防止垃圾数据
-        if (usdValue < 0.1) {
-             console.log(`📉 金额太小忽略: $${usdValue}`);
-             continue;
-        }
+          // 查户口：这个收钱的人(receiverWallet)，有没有上级？
+          const { data: user } = await supabase
+            .from('users')
+            .select('referrer')
+            .eq('wallet', receiverWallet)
+            .single();
 
-        const reward = buyAmount * 0.05; 
-        console.log(`✅ 正在发奖: 上级 ${referrer} 应得 ${reward} MGT`);
+          // 只有当“收钱的人”有上级时，才触发奖励
+          if (user?.referrer) {
+              const referrer = user.referrer;
+              const reward = amount * 0.05; // 5%
 
-        // A. 记录流水
-        await supabase.from('transactions').insert({
-            signature,
-            buyer,
-            referrer,
-            token_amount: buyAmount,
-            reward_amount: reward,
-            usdt_value: usdValue
-        });
+              console.log(`🚀 捕获买入: 用户 ${receiverWallet} 买入 (上级: ${referrer})`);
+              console.log(`💰 发放奖励: ${reward} MGT (价值 $${usdValue.toFixed(2)})`);
 
-        // B. RPC 安全更新业绩
-        const { error: rpcError } = await supabase.rpc('increment_team_volume', {
-            wallet_address: referrer,
-            amount_to_add: usdValue
-        });
-        
-        // C. 更新待领取奖励 (累加)
-        // 这里用 rpc 或者先查后改都可以，为了简单先用 SQL
-        // 注意：Supabase 没有原生的 increment 更新，最好是用 rpc，或者像你之前那样先查后改
-        // 为了稳妥，这里建议用 increment_pending_reward 函数 (如果你数据库里有的话)
-        // 如果没有，就保留你原来的先查后改逻辑 👇
-        
-        const { data: refData } = await supabase.from('users').select('pending_reward, total_earned, locked_reward').eq('wallet', referrer).single();
-        if (refData) {
-            await supabase.from('users').update({
-                // 同时更新 待领取(pending) 和 锁仓(locked) - 根据你的业务逻辑选一个
-                // 既然你之前是 locked_reward，那就加到 locked_reward
-                locked_reward: (refData.locked_reward || 0) + reward, 
-                total_earned: (refData.total_earned || 0) + reward
-            }).eq('wallet', referrer);
-        }
+              // A. 记录流水
+              await supabase.from('transactions').insert({
+                  signature,
+                  buyer: receiverWallet,
+                  referrer: referrer,
+                  token_amount: amount,
+                  reward_amount: reward,
+                  usdt_value: usdValue
+              });
 
-        if (rpcError) console.error("❌ 业绩更新失败:", rpcError);
+              // B. 更新业绩 (RPC)
+              await supabase.rpc('increment_team_volume', {
+                  wallet_address: referrer,
+                  amount_to_add: usdValue
+              });
 
-      } else {
-        console.log(`🤷‍♂️ 无上级: 用户 ${buyer} 是孤儿，不发奖`);
-        // 也可以记录一条无奖励的流水
+              // C. 更新奖励余额 (RPC) - 用我们之前写的那个 SQL 函数！
+              const { error: rpcError } = await supabase.rpc('increment_pending_reward', {
+                  wallet_address: referrer,
+                  reward_to_add: reward
+              });
+
+              if (rpcError) console.error("❌ RPC更新奖励失败:", rpcError);
+              
+              // 找到一个有效买入后，通常这笔交易就处理完了，break 防止重复计算
+              break; 
+          }
       }
     }
 
