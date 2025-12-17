@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import bs58 from 'bs58';
 import confetti from 'canvas-confetti';
 import PriceTicker from '@/components/PriceTicker';
+import dynamic from 'next/dynamic';
 
 // ------------------------------------------------------------------
 // 🌍 多语言配置字典 (已修复逗号问题，包含非遗文案)
@@ -1191,8 +1192,22 @@ export default function Home() {
               </motion.div>
 
               {/* 3. K线图 */}
-              <div className="text-xl flex items-center gap-2 font-bold">
-                  当前价格: <PriceTicker />
+              <div className="text-xl font-bold flex items-center gap-2 md:hidden">
+                  {/* 👇 判断：如果是中文(zh)显示"实时价格"，否则显示"MGT Price" */}
+                  {lang === 'zh' ? 'MGT 实时价格' : 'MGT Price'}: <PriceTicker />
+              </div>
+
+              {/* K线图 */}
+              <div className="hidden md:block w-full mt-6 mb-10">
+                <div className="text-sm text-gray-400 mb-2 flex items-center gap-2">
+                  📊 实时走势 (Live Chart)
+                </div>
+                <div className="w-full h-[500px] rounded-2xl overflow-hidden border border-gray-800/50 bg-black/40 backdrop-blur-sm shadow-2xl">
+                  <PriceChart 
+                    tokenAddress="59eXaVJNG441QW54NTmpeDpXEzkuaRjSLm8M6N4Gpump" 
+                    lang="zh" 
+                  />
+                </div>
               </div>
 
               {/* 4. 关系卡片 */}
