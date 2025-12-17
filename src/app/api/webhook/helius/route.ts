@@ -4,14 +4,13 @@ import { NextResponse } from 'next/server';
 export const runtime = 'edge';
 
 const MGT_MINT = "59eXaVJNG441QW54NTmpeDpXEzkuaRjSLm8M6N4Gpump";
-// 🛡️ 保底价格：万一 API 全挂了，用这个价格算业绩
 const FALLBACK_PRICE = 0.00013; 
 
-// ⚡️ 1. 极速获取价格 (带 2秒 超时控制，防止 Helius 报错)
+// 1. 价格查询 (保持防超时)
 async function getMgtPrice() {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2秒后强制断开
+    const timeoutId = setTimeout(() => controller.abort(), 2000); 
 
     const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${MGT_MINT}`, {
       signal: controller.signal
@@ -24,16 +23,13 @@ async function getMgtPrice() {
     
     if (price && !isNaN(price)) return price;
     throw new Error("无效价格");
-
   } catch (error) {
-    console.warn("⚠️ 价格查询超时或失败，启用保底价:", FALLBACK_PRICE);
     return FALLBACK_PRICE;
   }
 }
 
 export async function POST(request: Request) {
   try {
-    // 1. 验证
     const { searchParams } = new URL(request.url);
     if (searchParams.get('secret') !== process.env.HELIUS_WEBHOOK_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -47,10 +43,7 @@ export async function POST(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // 2. 获取价格 (极速版)
     const currentPrice = await getMgtPrice();
-
-    // 3. 处理逻辑
     const updates = [];
 
     for (const tx of body) {
@@ -59,32 +52,45 @@ export async function POST(request: Request) {
       const signature = tx.signature;
       const transfers = tx.tokenTransfers || [];
 
-      // 🔥 核心修复：OKX 兼容逻辑 (不看 feePayer，只看谁收到了币)
-      const mgtTransfers = transfers.filter((t: any) => t.mint === MGT_MINT);
+      // 🔥 调试日志：打印所有涉及 MGT 的转账，看看 OKX 到底干了啥
+      const allMgtActions = transfers.filter((t: any) => t.mint === MGT_MINT);
+      console.log(`🔍 交易 ${signature.slice(0,6)} 包含 ${allMgtActions.length} 笔 MGT 变动`);
 
-      for (const transfer of mgtTransfers) {
-          const receiverWallet = transfer.toUserAccount; // 真正的买家
+      if (allMgtActions.length === 0) continue;
+
+      // 🔥 终极兼容：遍历所有 MGT 变动，只要有人“收到了钱”，就去数据库查他是不是用户
+      for (const transfer of allMgtActions) {
+          const receiverWallet = transfer.toUserAccount; // 可能是用户，也可能是路由
           const amount = parseFloat(transfer.tokenAmount);
+
+          // 必须是“正数”且大于0 (排除支出)
+          if (amount <= 0) continue; 
+          
           const usdValue = amount * currentPrice;
+          if (usdValue < 0.1) continue; 
 
-          if (usdValue < 0.1) continue; // 过滤垃圾交易
-
-          // 把费时的数据库操作打包，稍后并发执行
+          // ⚡️ 这里是关键：不管这笔转账是主要转账还是中间转账
+          // 直接去数据库问：“这个 receiverWallet 是我们的注册用户吗？”
+          // 如果是路由合约，数据库查不到，自然就跳过了。
+          // 如果是 B 钱包，数据库能查到，就触发奖励！
+          
           updates.push(async () => {
-              // 查户口
               const { data: user } = await supabase
                 .from('users')
-                .select('referrer')
+                .select('referrer, wallet') // 多查一个 wallet 确认
                 .eq('wallet', receiverWallet)
                 .single();
 
-              if (user?.referrer) {
+              // 只有当“收钱的人”真实存在于我们的 users 表，并且有上级时
+              if (user && user.referrer) {
                   const referrer = user.referrer;
-                  const reward = amount * 0.05; // 5%
+                  const reward = amount * 0.05; 
 
-                  console.log(`🚀 捕获业绩: ${referrer} +$${usdValue.toFixed(2)}`);
+                  console.log(`🎯 命中OKX/移动端交易!`);
+                  console.log(`👤 买家: ${receiverWallet} (数据库已认证)`);
+                  console.log(`💰 发奖给: ${referrer}`);
 
-                  // A. 查重并记录
+                  // A. 查重
                   const { error: insertError } = await supabase.from('transactions').insert({
                       signature,
                       buyer: receiverWallet,
@@ -94,33 +100,29 @@ export async function POST(request: Request) {
                       usdt_value: usdValue
                   });
 
+                  // B. 加钱
                   if (!insertError) {
-                      // B. 加业绩 (RPC)
                       await supabase.rpc('increment_team_volume', {
                           wallet_address: referrer, 
                           amount_to_add: usdValue
                       });
-                      // C. 加奖励 (RPC)
                       await supabase.rpc('increment_pending_reward', {
                           wallet_address: referrer, 
                           reward_to_add: reward
                       });
                   } else {
-                      console.log("⚠️ 交易已存在，跳过奖励发放");
+                      console.log("⚠️ 交易重复，跳过");
                   }
               }
           });
       }
     }
 
-    // 4. 并发执行所有数据库操作，最大限度节省时间
     await Promise.allSettled(updates.map(fn => fn()));
-
     return NextResponse.json({ success: true });
 
   } catch (err: any) {
     console.error('Webhook Error:', err);
-    // 即使出错也返回 200，防止 Helius 疯狂重试
     return NextResponse.json({ success: true, error: err.message });
   }
 }
