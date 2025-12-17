@@ -32,7 +32,7 @@ export default function PriceTicker() {
 
   return (
     <span className="font-mono text-green-400 font-bold">
-      ${price.toFixed(4)}
+      ${price.toFixed(6)}
     </span>
   );
 }
