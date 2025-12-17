@@ -123,9 +123,24 @@ body {
   box-shadow: 0 0 40px -10px rgba(147, 51, 234, 0.3) !important; /* 紫色霓虹光晕 */
   border-radius: 24px !important;
   padding: 20px !important;
-  width: 360px !important;
+  width: 100% !important;
+  max-width: 360px !important;
+  box-sizing: border-box !important;
   font-family: var(--font-sans), sans-serif !important;
   z-index: 9999 !important;
+  margin: 16px !important;
+}
+
+/* 📱 针对移动端的额外保险措施 */
+@media (max-width: 480px) {
+  .wallet-adapter-modal-container {
+    margin: 0 !important;
+     padding: 0 16px !important; /* 给左右留点缝隙 */
+  }
+  
+  .wallet-adapter-modal-wrapper {
+     flex: 1 !important; /* 让它在小屏幕上更灵活 */
+  }
 }
 
 /* 3. 标题文字："Connect a wallet..." */
