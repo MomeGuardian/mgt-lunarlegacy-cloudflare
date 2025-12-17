@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
 
+export const runtime = 'edge';
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -49,7 +51,7 @@ export async function POST(request: Request) {
       .single();
 
     if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 是查无此人，忽略
-       throw fetchError;
+      throw fetchError;
     }
 
     // 如果已经有上级，且上级不为空，则拒绝修改
