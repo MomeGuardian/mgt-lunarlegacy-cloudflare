@@ -290,6 +290,7 @@ export default function Home() {
 
   const [lastVestingTime, setLastVestingTime] = useState<string | null>(null);
   const [liveClaimable, setLiveClaimable] = useState(0);
+  const [lastTxHash, setLastTxHash] = useState("");
 
   const handleShowReferrals = async () => {
     if (!publicKey) return;
@@ -580,7 +581,7 @@ export default function Home() {
         let amount = 0;
 
         if (lockedReward <= CLEAR_THRESHOLD) {
-             amount = lockedReward; 
+            amount = lockedReward; 
         } else {
              amount = (lockedReward / 14) * daysPassed; 
         }
@@ -618,12 +619,13 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [lockedReward, lastVestingTime, lang]); 
 
-  // ------------------------------------------------------------------
-  // ✅ 3. 收取释放
+// ------------------------------------------------------------------
+  // ✅ 3. 收取释放 (最终自动版：呼叫后端 API + 全部提现)
   // ------------------------------------------------------------------
   const claimReward = async () => {
     // 1. 基础检查
     if (!publicKey) return;
+    
     // 允许小额误差，余额大于 0.1 才能领
     if (lockedReward <= 0.1) {
         toast.error("暂无奖励可释放");
@@ -650,8 +652,12 @@ export default function Home() {
       }
 
       // ✅ 5. 成功！更新界面
-      // 后端返回了实际转账金额 (data.amount)
-      setLastReleasedAmount(data.amount || 0); 
+      // 后端返回了实际转账金额 (data.amount) 和 交易哈希 (data.tx)
+      const amount = data.amount || 0;
+      const txHash = data.tx || "";
+
+      setLastReleasedAmount(amount); 
+      setLastTxHash(txHash); // 保存哈希，用于弹窗显示
       
       // 因为是全部提取，直接清零
       setLockedReward(0); 
@@ -784,10 +790,10 @@ export default function Home() {
                 <p className="text-gray-400 text-sm mb-6">
                   本次释放金额：<br/>
                   <span className="text-2xl font-bold text-yellow-400">{lastReleasedAmount.toFixed(4)} MGT</span>
-                  <br/><span className="text-xs text-gray-500 mt-2 block">请等待管理员手动打款</span>
+                  <br/><span className="text-xs text-green-400 mt-2 block font-bold">✅ 资金已自动发送至您的钱包！</span>
+                      <a href={`https://solscan.io/tx/${lastTxHash}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-400 underline mt-1 block">查看链上交易记录 (Solscan)</a>
                 </p>
 
-                {/* 按钮组 */}
                 <div className="flex flex-col gap-3">
                     <button
                       onClick={() => setShowClaimSuccess(false)}
