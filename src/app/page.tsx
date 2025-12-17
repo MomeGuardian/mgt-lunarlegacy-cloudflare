@@ -623,21 +623,17 @@ export default function Home() {
   // ✅ 3. 收取释放 (最终自动版：呼叫后端 API + 全部提现)
   // ------------------------------------------------------------------
   const claimReward = async () => {
-    // 1. 基础检查
     if (!publicKey) return;
-    
-    // 允许小额误差，余额大于 0.1 才能领
-    if (lockedReward <= 0.1) {
+    if (lockedReward <= 0.001) { // 稍微放宽一点精度
         toast.error("暂无奖励可释放");
         return;
     }
 
-    // 2. 锁定按钮，防止重复点击
     setClaiming(true);
-    const toastId = toast.loading("正在呼叫智能合约自动打款...");
+    const toastId = toast.loading("正在链上处理，请勿关闭...");
 
     try {
-      // ✅ 3. 呼叫后端 API (这是唯一的核心逻辑)
+      // 呼叫后端
       const res = await fetch("/api/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -646,27 +642,18 @@ export default function Home() {
       
       const data = await res.json();
 
-      // 4. 处理错误
-      if (!res.ok) {
-        throw new Error(data.error || "请求失败");
-      }
+      if (!res.ok) throw new Error(data.error || "请求失败");
 
-      // ✅ 5. 成功！更新界面
-      // 后端返回了实际转账金额 (data.amount) 和 交易哈希 (data.tx)
-      const amount = data.amount || 0;
-      const txHash = data.tx || "";
-
-      setLastReleasedAmount(amount); 
-      setLastTxHash(txHash); // 保存哈希，用于弹窗显示
-      
-      // 因为是全部提取，直接清零
+      // ✅ 强制更新 UI (不用等下次 fetch)
+      // 直接把当前显示的余额改成 0
       setLockedReward(0); 
       setLiveClaimable(0);
-      
+      setLastReleasedAmount(data.amount || lockedReward); // 如果后端没返回，就用当前的
+      setLastTxHash(data.tx || "");
+
       setShowClaimSuccess(true);
       toast.dismiss(toastId); 
 
-      // 🎉 撒花庆祝
       confetti({
         particleCount: 150,
         spread: 70,
@@ -674,11 +661,20 @@ export default function Home() {
         colors: ['#22c55e', '#eab308', '#a855f7'] 
       });
 
+      // 🔁 双重保险：3秒后在后台悄悄刷新一次真实数据
+      setTimeout(() => {
+          checkAvailability(); // 重新拉取一次 Supabase
+      }, 3000);
+
     } catch (err: any) {
       console.error("Claim Error:", err);
-      toast.error(`领取失败: ${err.message}`, { id: toastId });
+      // ⚠️ 特殊处理：如果已经发了但超时了，不要报错，算成功
+      if (err.message.includes("Time") || err.message.includes("timeout")) {
+          toast.success("请求已提交，请稍后刷新查看", { id: toastId });
+      } else {
+          toast.error(`领取异常: ${err.message}`, { id: toastId });
+      }
     } finally {
-      // 6. 解锁按钮
       setClaiming(false);
     }
   };
