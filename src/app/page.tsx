@@ -43,7 +43,7 @@ const translations = {
 
     // --- 🎁 卡片 2: 锁仓 ---
     pending_reward: "总锁仓余额",
-    pending_reward_desc: "14天释放 · 每日累计",
+    pending_reward_desc: "30天释放 · 每日累计",
     today_available: "当前可领收益",
     click_harvest: "一键领取",
     wait_release: "等待释放",
@@ -99,7 +99,7 @@ const translations = {
 
     // --- Card 2: Locked ---
     pending_reward: "Total Locked",
-    pending_reward_desc: "14d Vesting · Daily Accum.",
+    pending_reward_desc: "30d Vesting · Daily Accum.",
     today_available: "Available",
     click_harvest: "Harvest Now",
     wait_release: "Wait Release",
@@ -583,7 +583,7 @@ export default function Home() {
         if (lockedReward <= CLEAR_THRESHOLD) {
             amount = lockedReward; 
         } else {
-             amount = (lockedReward / 14) * daysPassed; 
+             amount = (lockedReward / 30) * daysPassed; 
         }
 
         amount = Math.min(amount, lockedReward);
@@ -883,9 +883,9 @@ export default function Home() {
                                     ⏳
                                 </div>
                                 <div>
-                                    <h4 className="text-yellow-100 font-bold text-sm mb-1">14天线性释放</h4>
+                                    <h4 className="text-yellow-100 font-bold text-sm mb-1">30天线性释放</h4>
                                     <p className="text-xs text-gray-400 leading-relaxed">
-                                        返佣奖励进入冻结池，每日自动释放 <span className="text-yellow-400 font-bold">1/14</span>。每日 00:00 刷新，支持<span className="text-white">“每日领取”</span>或<span className="text-white">“懒人累积”</span>。
+                                        返佣奖励进入冻结池，每日自动释放 <span className="text-yellow-400 font-bold">1/30</span>。每日 00:00 刷新，支持<span className="text-white">“每日领取”</span>或<span className="text-white">“懒人累积”</span>。
                                     </p>
                                 </div>
                             </div>
