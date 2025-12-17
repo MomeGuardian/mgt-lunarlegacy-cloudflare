@@ -5,8 +5,8 @@ import {
     Keypair, 
     PublicKey, 
     Transaction, 
-    sendAndConfirmTransaction,
-    ComputeBudgetProgram // 👈 新增引入
+    sendTransaction, // 👈 改用 sendTransaction
+    ComputeBudgetProgram 
 } from '@solana/web3.js';
 import { getAssociatedTokenAddress, createTransferInstruction } from '@solana/spl-token';
 import bs58 from 'bs58';
@@ -31,9 +31,7 @@ export async function POST(request: Request) {
       .single();
 
     if (dbError || !user) throw new Error("User not found");
-
     const amountToClaim = user.locked_reward; 
-    console.log(`👤 用户: ${wallet}, 余额: ${amountToClaim}`);
 
     if (amountToClaim < 0.000001) {
       return NextResponse.json({ success: true, amount: 0, message: "余额为0" });
@@ -41,11 +39,8 @@ export async function POST(request: Request) {
 
     // 3. 准备转账
     const privateKey = process.env.PAYER_PRIVATE_KEY;
-    if (!privateKey) throw new Error("Private key missing");
-
-    // ⚠️ 建议：如果 QuickNode 还是慢，可以尝试换回官方主网地址测试
-    // const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
-    const connection = new Connection(process.env.NEXT_PUBLIC_RPC_URL!, 'confirmed');
+    // ⚡️⚡️ 核心修改：使用 'processed' 极速模式，防止 Cloudflare 超时
+    const connection = new Connection(process.env.NEXT_PUBLIC_RPC_URL!, 'processed');
     
     const payer = Keypair.fromSecretKey(bs58.decode(privateKey));
     const mint = new PublicKey(process.env.NEXT_PUBLIC_TOKEN_MINT!); 
@@ -57,38 +52,37 @@ export async function POST(request: Request) {
     const decimals = 6; 
     const transferAmount = Math.floor(amountToClaim * Math.pow(10, decimals));
 
-    // 🔥🔥 核心修改：添加优先费 (加速交易) 🔥🔥
-    const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({ 
-      units: 200_000 
-    });
-
-    const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({ 
-      microLamports: 100_000 // 支付更高的优先费 (约 0.0001 SOL)
-    });
+    // 加速费
+    const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 });
+    const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100_000 });
 
     const transaction = new Transaction()
-      .add(modifyComputeUnits) // 1. 设置计算上限
-      .add(addPriorityFee)     // 2. 加小费
-      .add(                    // 3. 转账指令
-        createTransferInstruction(
-          payerATA,
-          recipientATA,
-          payer.publicKey,
-          transferAmount
-        )
-      );
+      .add(modifyComputeUnits)
+      .add(addPriorityFee)
+      .add(createTransferInstruction(payerATA, recipientATA, payer.publicKey, transferAmount));
 
-    // 发送交易
-    console.log(`💸 发送交易 (带优先费)...`);
-    const signature = await sendAndConfirmTransaction(connection, transaction, [payer]);
-    console.log(`✅ 交易成功: ${signature}`);
+    transaction.recentBlockhash = (await connection.getLatestBlockhash('processed')).blockhash;
+    transaction.feePayer = payer.publicKey;
+    transaction.sign(payer);
 
-    // 4. 清零数据库
+    console.log(`💸 发送交易 (极速模式)...`);
+    
+    // ⚡️⚡️ 核心修改：发送后不等待完全确认，直接往下走
+    const signature = await connection.sendRawTransaction(transaction.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'processed'
+    });
+
+    console.log(`✅ 交易已广播: ${signature}`);
+
+    // 4. 立刻清零数据库 (不管链上有没有最终确认，先清零防止重复领)
+    // 如果链上失败了，用户可以找管理员补，但绝不能多领。
     await supabase.from('users').update({ 
       locked_reward: 0,
       last_vesting_time: new Date().toISOString()
     }).eq('wallet', wallet);
 
+    // 5. 秒回前端
     return NextResponse.json({ 
       success: true, 
       tx: signature, 
@@ -97,7 +91,6 @@ export async function POST(request: Request) {
 
   } catch (err: any) {
     console.error("❌ API Error:", err);
-    // 返回具体错误信息给前端，方便调试
-    return NextResponse.json({ error: err.message || "Transfer failed" }, { status: 500 });
+    return NextResponse.json({ error: err.message || "Failed" }, { status: 500 });
   }
 }
