@@ -12,6 +12,7 @@ import PriceChart from "@/components/PriceChart";
 import { useRouter } from "next/navigation"; 
 import bs58 from 'bs58';
 import confetti from 'canvas-confetti';
+import PriceTicker from '@/components/PriceTicker';
 
 // ------------------------------------------------------------------
 // 🌍 多语言配置字典 (已修复逗号问题，包含非遗文案)
@@ -303,7 +304,8 @@ export default function Home() {
         .from('users')
         .select('wallet')
         .eq('referrer', publicKey.toBase58())
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(20);
 
       if (error) throw error;
 
@@ -654,12 +656,19 @@ export default function Home() {
       setShowClaimSuccess(true);
       toast.dismiss(toastId); 
 
+      // 检测当前屏幕宽度是否小于 768px (iPad/手机的标准分界线)
+      const isMobile = window.innerWidth < 768;
+
+      // 🎉 撒花庆祝
       confetti({
-        particleCount: 150,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#22c55e', '#eab308', '#a855f7'] 
-      });
+      // 📱 手机只发 60 个，电脑发 150 个
+      particleCount: isMobile ? 60 : 150, 
+      spread: isMobile ? 50 : 70,        // 手机屏幕窄，扩散范围小一点
+      origin: { y: 0.6 },
+      colors: ['#22c55e', '#eab308', '#a855f7'],
+      disableForReducedMotion: true,     // 如果用户开启了减弱动态效果，直接不播
+      scalar: isMobile ? 0.8 : 1,        // 手机上粒子稍微小一点
+    });
 
       // 🔁 双重保险：3秒后在后台悄悄刷新一次真实数据
       setTimeout(() => {
@@ -851,7 +860,7 @@ export default function Home() {
                         {/* 🏷️ 标题栏 */}
                         <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
                             <h3 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 flex items-center gap-2">
-                                📜 {t.more_rules} <span className="text-xs font-medium text-gray-600 bg-white/10 px-2 py-0.5 rounded-full border border-white/5">V2.0</span>
+                                📜 {t.more_rules} <span className="text-xs font-medium text-gray-600 bg-white/10 px-2 py-0.5 rounded-full border border-white/5">V1.0</span>
                             </h3>
                             <button 
                                 onClick={() => setShowRules(false)} 
@@ -1159,7 +1168,7 @@ export default function Home() {
                       onClick={claimReward}
                       disabled={!connected || claiming || liveClaimable <= 0.1}
                       className={`
-                        relative overflow-hidden px-5 py-6 rounded-xl font-bold text-sm transition-all shadow-lg flex flex-col items-center justify-center min-w-[110px]
+                        relative btn-click-effect overflow-hidden px-5 py-6 rounded-xl font-bold text-sm transition-all shadow-lg flex flex-col items-center justify-center min-w-[110px]
                         ${(!connected || claiming || liveClaimable <= 0)
                           ? "bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700"
                           : "bg-gradient-to-br from-green-500 to-emerald-700 hover:scale-105 text-white shadow-green-500/20 border border-green-400/20"
@@ -1182,8 +1191,8 @@ export default function Home() {
               </motion.div>
 
               {/* 3. K线图 */}
-              <div className="w-full mt-2">
-                <PriceChart tokenAddress={contractAddress} lang={lang} />
+              <div className="text-xl flex items-center gap-2 font-bold">
+                  当前价格: <PriceTicker />
               </div>
 
               {/* 4. 关系卡片 */}
@@ -1209,7 +1218,7 @@ export default function Home() {
                                 if (!connected) toast.error("请先连接钱包");
                                 else setIsBinding(true);
                             }}
-                            className="flex items-center space-x-2 bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/50 px-4 py-1.5 rounded-full transition-all group"
+                            className="flex btn-click-effect items-center space-x-2 bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/50 px-4 py-1.5 rounded-full transition-all group"
                         >
                             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
                             <span className="text-xs md:text-sm font-bold text-purple-200 group-hover:text-white">
