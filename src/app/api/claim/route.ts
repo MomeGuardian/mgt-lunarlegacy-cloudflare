@@ -5,13 +5,15 @@ import {
     Keypair, 
     PublicKey, 
     Transaction, 
-    sendTransaction, // 👈 改用 sendTransaction
     ComputeBudgetProgram 
 } from '@solana/web3.js';
 import { getAssociatedTokenAddress, createTransferInstruction } from '@solana/spl-token';
 import bs58 from 'bs58';
 
 export const runtime = 'edge';
+
+// ⚙️ 配置：释放周期 (30天)
+const VESTING_DAYS = 30;
 
 export async function POST(request: Request) {
   try {
@@ -23,24 +25,61 @@ export async function POST(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // 2. 查余额
+    // 2. 查余额 (⚠️ 必须多查两个字段: total_claimed 和 last_vesting_time)
     const { data: user, error: dbError } = await supabase
       .from('users')
-      .select('locked_reward')
+      .select('locked_reward, total_claimed, last_vesting_time')
       .eq('wallet', wallet)
       .single();
 
     if (dbError || !user) throw new Error("User not found");
-    const amountToClaim = user.locked_reward; 
 
-    if (amountToClaim < 0.000001) {
-      return NextResponse.json({ success: true, amount: 0, message: "余额为0" });
+    // 🔥🔥 核心修改：30天线性释放算法 🔥🔥
+    // 算法逻辑：总权益 / 30天 = 每天释放量。  每天释放量 * 距离上次领取得时间 = 本次可领。
+    
+    const now = Date.now();
+    // 如果是第一次领，就从现在开始算；否则从上次领取时间算
+    const lastTime = user.last_vesting_time ? new Date(user.last_vesting_time).getTime() : now;
+    
+    const currentLocked = user.locked_reward || 0;
+    const claimedSoFar = user.total_claimed || 0;
+    
+    // 总权益 = 还没领的 + 已经领的
+    const totalPool = currentLocked + claimedSoFar;
+
+    if (totalPool <= 0.000001) {
+       return NextResponse.json({ success: true, amount: 0, message: "暂无资产" });
     }
 
-    // 3. 准备转账
+    // 计算过去了多少毫秒
+    const msPassed = now - lastTime;
+    // 换算成天 (例如 0.04 天)
+    const daysPassed = msPassed / (1000 * 60 * 60 * 24);
+
+    // 每天释放多少
+    const dailyRate = totalPool / VESTING_DAYS;
+
+    // 本次能领多少
+    let amountToClaim = dailyRate * daysPassed;
+
+    // 🛡️ 限制 1: 不能超过当前余额
+    if (amountToClaim > currentLocked) {
+        amountToClaim = currentLocked;
+    }
+
+    // 🛡️ 限制 2: 最小提现门槛 (攒够 0.1 再让领，省 Gas)
+    if (amountToClaim < 0.1) {
+        return NextResponse.json({ 
+            success: false, 
+            error: `积累太少，满 0.1 MGT 可领。当前积攒: ${amountToClaim.toFixed(4)}` 
+        }, { status: 400 });
+    }
+
+    console.log(`🧮 线性计算: 总盘 ${totalPool} | 过去 ${daysPassed.toFixed(4)} 天 | 本次释放 ${amountToClaim}`);
+
+    // 3. 准备转账 (保留你的极速模式)
     const privateKey = process.env.PAYER_PRIVATE_KEY;
-    // ⚡️⚡️ 核心修改：使用 'processed' 极速模式，防止 Cloudflare 超时
-    const connection = new Connection(process.env.NEXT_PUBLIC_RPC_URL!, 'processed');
+    const connection = new Connection(process.env.NEXT_PUBLIC_RPC_URL!, 'processed'); // ⚡️ 极速
     
     const payer = Keypair.fromSecretKey(bs58.decode(privateKey));
     const mint = new PublicKey(process.env.NEXT_PUBLIC_TOKEN_MINT!); 
@@ -52,7 +91,6 @@ export async function POST(request: Request) {
     const decimals = 6; 
     const transferAmount = Math.floor(amountToClaim * Math.pow(10, decimals));
 
-    // 加速费
     const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 });
     const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100_000 });
 
@@ -65,24 +103,25 @@ export async function POST(request: Request) {
     transaction.feePayer = payer.publicKey;
     transaction.sign(payer);
 
-    console.log(`💸 发送交易 (极速模式)...`);
+    console.log(`💸 发送交易...`);
     
-    // ⚡️⚡️ 核心修改：发送后不等待完全确认，直接往下走
     const signature = await connection.sendRawTransaction(transaction.serialize(), {
         skipPreflight: false,
         preflightCommitment: 'processed'
     });
 
-    console.log(`✅ 交易已广播: ${signature}`);
+    console.log(`✅ 交易广播: ${signature}`);
 
-    // 4. 立刻清零数据库 (不管链上有没有最终确认，先清零防止重复领)
-    // 如果链上失败了，用户可以找管理员补，但绝不能多领。
-    await supabase.from('users').update({ 
-      locked_reward: 0,
-      last_vesting_time: new Date().toISOString()
+    // 4. 更新数据库 (⚠️ 逻辑变了：扣余额，加已领，更新时间)
+    const { error: updateError } = await supabase.from('users').update({ 
+      locked_reward: currentLocked - amountToClaim, // 余额变少
+      total_claimed: claimedSoFar + amountToClaim,  // 已领变多
+      last_vesting_time: new Date().toISOString()   // 重置闹钟到“现在”
     }).eq('wallet', wallet);
 
-    // 5. 秒回前端
+    if (updateError) console.error("DB Update Error", updateError);
+
+    // 5. 返回
     return NextResponse.json({ 
       success: true, 
       tx: signature, 
