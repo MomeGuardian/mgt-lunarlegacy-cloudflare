@@ -15,14 +15,11 @@ import confetti from 'canvas-confetti';
 import PriceTicker from '@/components/PriceTicker';
 import dynamic from 'next/dynamic';
 
-// ------------------------------------------------------------------
-// 🌍 多语言配置字典 (已修复逗号问题，包含非遗文案)
-// ------------------------------------------------------------------
 const translations = {
   zh: {
     connect: "连接钱包",
     more_leaderboard: "实时排行榜",
-    more_rules: "推广规则",
+    more_rules: "晋升法则",
     more_intro: "MGT介绍",
     lang_switch: "语言 / Language",
     hero_title: "$MGT 直推军团",
@@ -33,38 +30,48 @@ const translations = {
     link_copied: "推广链接已复制！快去分享吧！",
     buy_btn_main: "立即前往 OKX 抢购 $MGT",
     buy_btn_sub: "USDT / SOL 双通道极速兑换",
-    my_commander: "我的指挥官",
+    my_Leader: "我的指挥官",
     bind_btn: "绑定上级 +",
     referral_link: "专属招募链接",
     copy_link: "复制链接",
-    
-    // --- 💰 卡片 1: 业绩 ---
+
     team_volume: "我的直推总业绩",
     team_volume_desc: "直推总交易额 (USDT)",
     check_leaderboard: "查看榜单",
 
-    // --- 🎁 卡片 2: 锁仓 ---
-    pending_reward: "总锁仓余额",
-    pending_reward_desc: "30天释放 · 每日累计",
-    today_available: "当前可领收益",
+    pending_reward: "待释放奖励池",
+    pending_reward_desc: "30天考核期 · 期满全额解锁",
+    today_available: "已释放代币", 
     click_harvest: "一键领取",
-    wait_release: "等待释放",
-    harvest_btn: "收取收益", // 按钮大字
+    wait_release: "考核进行中...",
+    harvest_btn: "收取收益", 
 
-    // --- 👥 卡片 3: 人数 ---
     my_referrals: "我的直推人数",
     click_to_view: "点击查看",
 
-    // --- ℹ️ 介绍弹窗专用 (非遗版) ---
+    rules_title: "⚔️ 指挥官晋升法则",
+    rule_1: "🚀 5% 直推奖励",
+    rule_1_desc: "您的下级买入 MGT，您立刻获得其买入金额 5% 的奖励进入锁定池。",
+    rule_2: "⏳ 30天 钻石手考核",
+    rule_2_desc: "所有奖励锁定 30 天 (悬崖释放)。考核期满后，一次性全额解锁。",
+    rule_3: "🩸 动态回撤 (防砸盘)",
+    rule_3_desc: "考核期内，若您的下级卖出 MGT，系统将自动扣除您对应的锁定奖励。共识致富！",
+    rule_4: "💎 领取资格",
+    rule_4_desc: "坚持持有满 30 天且下级未清仓，奖励全额归您所有。",
+    rule_5: "🏆 榜单空投激励",
+    rule_5_desc: "实时更新全网直推业绩。冲击排行榜前十名，未来将获得额外的代币空投与生态权益。",
+    got_it_btn: "明白了，开始赚钱 🚀",
+
     intro_title: "$MGT 核心愿景",
     intro_core_title: "Solana × 全球非遗",
     intro_core_desc: "全球首个将 Solana 高速区块链技术与【全球非物质文化遗产】深度融合的数字资产。",
     intro_safe_title: "生态落地 & 兑换",
     intro_safe_desc: "$MGT 打通虚实边界，代币可直接用于【兑换全球非遗珍品】与传承体验。",
     intro_ca_label: "合约地址 (点击复制)",
+    intro_tag_1: "🎁 实物兑换",
+    intro_tag_2: "🏮 文化传承",
 
-    // --- 其他 ---
-    claim_loading: "计算释放中...",
+    claim_loading: "正在核对考核期...",
     manual_bind_title: "手动绑定上级",
     manual_bind_placeholder: "输入地址...",
     confirm_bind: "确认绑定",
@@ -73,13 +80,25 @@ const translations = {
     success_connect: "连接成功",
     addr_copied: "地址已复制到剪贴板 ✅",
     footer_built: "去中心化平台 | 基于 Solana 构建",
-    footer_rights: "© 2025 Solana. 版权所有."
+    footer_rights: "© 2025 Solana. 版权所有.",
+
+    modal_lb_title: "实时推广排行榜",
+    modal_lb_desc: "数据实时更新，竞争顶级荣耀",
+    modal_lb_tip: "努力推广，下一个榜一就是你！",
+    modal_lb_close: "关闭榜单",
+
+    ref_modal_title: "直推伙伴",
+    loading: "加载中...",
+    copy_success: "已复制地址",
+    copy_btn: "复制",
+    no_ref_data: "还没有直推伙伴，快去邀请吧！",
+    close_btn: "关闭列表",
   },
   en: {
     connect: "Connect",
     more_leaderboard: "Leaderboard",
     more_rules: "Rules",
-    more_intro: "Introduction",
+    more_intro: "Vision",
     lang_switch: "Language / 语言",
     hero_title: "$MGT Legion",
     hero_desc: "Connect wallet to start ",
@@ -89,38 +108,48 @@ const translations = {
     link_copied: "Referral link copied! Share it now!",
     buy_btn_main: "Buy $MGT on OKX Now",
     buy_btn_sub: "Fast Swap with USDT / SOL",
-    my_commander: "My Commander",
+    my_Leader: "My Leader",
     bind_btn: "Bind Referrer +",
     referral_link: "Referral Link",
     copy_link: "Copy Link",
 
-    // --- Card 1: Volume ---
     team_volume: "My Direct Volume",
     team_volume_desc: "Direct Vol (USDT)",
     check_leaderboard: "View Rank",
 
-    // --- Card 2: Locked ---
-    pending_reward: "Total Locked",
-    pending_reward_desc: "30d Vesting · Daily Accum.",
-    today_available: "Available",
+    pending_reward: "Locked Reward Pool",
+    pending_reward_desc: "30-Day Cliff · Full Unlock",
+    today_available: "Claimable Now",
     click_harvest: "Harvest Now",
-    wait_release: "Wait Release",
+    wait_release: "In Testing...",
     harvest_btn: "Harvest",
 
-    // --- Card 3: Referrals ---
     my_referrals: "My Referrals",
     click_to_view: "View Details",
 
-    // --- ℹ️ Intro Modal (ICH Version) ---
+    rules_title: "⚔️ Leader Rules",
+    rule_1: "🚀 5% Direct Reward",
+    rule_1_desc: "Earn 5% reward immediately when invitee buys. Rewards go to Locked Pool.",
+    rule_2: "⏳ 30-Day Diamond Hand",
+    rule_2_desc: "Rewards are locked for 30 days (Cliff). You claim 100% after the period ends.",
+    rule_3: "🩸 Dynamic Clawback (Anti-Dump)",
+    rule_3_desc: "If invitee sells during lock period, your rewards are deducted. Hold together!",
+    rule_4: "💎 Eligibility",
+    rule_4_desc: "Pass the 30-day test to claim full rewards.",
+    rule_5: "🏆 Leaderboard Airdrop",
+    rule_5_desc: "Top 10 Leaders on the global volume leaderboard will receive exclusive airdrops and benefits.",
+    got_it_btn: "Got it, Start Earning 🚀",
+
     intro_title: "Vision of $MGT",
     intro_core_title: "Solana × Global ICH",
     intro_core_desc: "The world's first digital asset integrating Solana speed with Global Intangible Cultural Heritage.",
     intro_safe_title: "Ecosystem Redemption",
-    intro_safe_desc: "More than crypto! $MGT ecosystem allows you to redeem authentic ICH treasures and experiences.",
+    intro_safe_desc: "$MGT ecosystem allows you to redeem authentic ICH treasures and experiences.",
     intro_ca_label: "Contract Address (Tap to Copy)",
+    intro_tag_1: "🎁 Real-world Redeem",
+    intro_tag_2: "🏮 Cultural Legacy",
 
-    // --- Others ---
-    claim_loading: "Calculating...",
+    claim_loading: "Verifying...",
     manual_bind_title: "Bind Referrer Manually",
     manual_bind_placeholder: "Enter address...",
     confirm_bind: "Confirm Bind",
@@ -129,24 +158,33 @@ const translations = {
     success_connect: "Connected Successfully",
     addr_copied: "Address copied to clipboard ✅",
     footer_built: "Decentralized Platform | Built on Sol",
-    footer_rights: "© 2025 Solana. All rights reserved."
+    footer_rights: "© 2025 Solana. All rights reserved.",
+
+    modal_lb_title: "Live Referral Leaderboard",
+    modal_lb_desc: "Real-time updates. Compete for top glory.",
+    modal_lb_tip: "Keep pushing! The next Top 1 could be you!",
+    modal_lb_close: "Close Leaderboard",
+
+    ref_modal_title: "Direct Partners",
+    loading: "Loading...",
+    copy_success: "Address Copied",
+    copy_btn: "Copy",
+    no_ref_data: "No partners yet. Go invite!",
+    close_btn: "Close List",
   }
 };
 
-// 防止 TS 报错
 declare global {
   interface Window {
     Jupiter: any;
   }
 }
 
-// 动画配置
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1, transition: { staggerChildren: 0.1, duration: 0.4 } },
 };
 
-// ✅ Navbar 组件
 const Navbar = ({ 
     onOpenRules, onOpenIntro, lang, setLang 
 }: { 
@@ -265,35 +303,26 @@ export default function Home() {
   const bindRef = useRef(false);
   const [baseUrl, setBaseUrl] = useState(''); 
   const [teamVolume, setTeamVolume] = useState(0); 
-  
   const [lockedReward, setLockedReward] = useState(0); 
   const [claiming, setClaiming] = useState(false);
   const [loading, setLoading] = useState(true);
   const hasShownWelcome = useRef(false);
   const [showClaimSuccess, setShowClaimSuccess] = useState(false);
-  
   const [lastReleasedAmount, setLastReleasedAmount] = useState(0); 
-
   const [countDownStr, setCountDownStr] = useState("");
-
   const [isBinding, setIsBinding] = useState(false); 
   const [manualReferrer, setManualReferrer] = useState(""); 
   const [showRules, setShowRules] = useState(false);
   const [showIntro, setShowIntro] = useState(false);
-
   const [lang, setLang] = useState<'zh' | 'en'>('zh');
   const t = translations[lang];
-
   const [showRefListModal, setShowRefListModal] = useState(false);
   const [refList, setRefList] = useState<string[]>([]); 
   const [loadingRefList, setLoadingRefList] = useState(false);
-
   const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
-
   const [lastVestingTime, setLastVestingTime] = useState<string | null>(null);
   const [liveClaimable, setLiveClaimable] = useState(0);
   const [lastTxHash, setLastTxHash] = useState("");
-
   const handleShowReferrals = async () => {
     if (!publicKey) return;
     
@@ -332,7 +361,6 @@ export default function Home() {
     if (ref) setInviter(ref);
   }, []);
 
-  // 🌟 自动登录 + 欢迎弹窗
   useEffect(() => {
     const STORAGE_KEY = "mgt_has_shown_welcome";
 
@@ -364,13 +392,11 @@ export default function Home() {
     }
   }, [connected, publicKey]); 
 
-  // 自动绑定
   const bindReferral = useCallback(async () => {
     if (!publicKey || !inviter || !signMessage || bindRef.current) return;
     if (inviter === publicKey.toBase58()) return;
-
     bindRef.current = true;
-    
+
     try {
       const { data } = await supabase.from("users").select("referrer").eq("wallet", publicKey.toBase58()).maybeSingle();
       
@@ -383,7 +409,6 @@ export default function Home() {
       const message = new TextEncoder().encode(messageContent);
       const signatureBytes = await signMessage(message);
       const signatureStr = bs58.encode(signatureBytes);
-
       const res = await fetch('/api/referral/bind', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -396,7 +421,6 @@ export default function Home() {
       });
 
       const result = await res.json();
-
       if (!res.ok) throw new Error(result.error);
 
       toast.success(t.success_bind, {
@@ -442,7 +466,6 @@ export default function Home() {
         const message = new TextEncoder().encode(messageContent);
         const signatureBytes = await signMessage(message);
         const signatureStr = bs58.encode(signatureBytes);
-
         const res = await fetch('/api/referral/bind', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -456,7 +479,6 @@ export default function Home() {
 
         const result = await res.json();
         if (!res.ok) throw new Error(result.error);
-
         setInviter(manualReferrer);
         setIsBinding(false);
         toast.success(t.success_manual_bind, {
@@ -477,9 +499,6 @@ export default function Home() {
     }
   };
 
-  // ------------------------------------------------------------------
-  // ✅ 1. 加载用户数据
-  // ------------------------------------------------------------------
   useEffect(() => {
     if (connected && publicKey) {
       const loadData = async () => {
@@ -522,9 +541,6 @@ export default function Home() {
     }
   }, [publicKey, connected]);
 
-  // ------------------------------------------------------------------
-  // ✅ useEffect A: 实时监听数据变化
-  // ------------------------------------------------------------------
   useEffect(() => {
     if (!connected || !publicKey) return;
 
@@ -554,9 +570,6 @@ export default function Home() {
     };
   }, [connected, publicKey]);
 
-  // ------------------------------------------------------------------
-  // ✅ useEffect B: 智能累积计算器 (支持多语言倒计时)
-  // ------------------------------------------------------------------
   useEffect(() => {
     if (!lockedReward || lockedReward <= 0) {
       setLiveClaimable(0);
@@ -566,20 +579,15 @@ export default function Home() {
     const checkAvailability = () => {
       const now = new Date();
       const lastTime = lastVestingTime ? new Date(lastVestingTime) : new Date(0);
-
-      // --- 北京时间 00:00 转换 ---
       const offset = 8 * 60 * 60 * 1000; 
       const bjNowTs = now.getTime() + offset;
       const bjLastTs = lastTime.getTime() + offset;
-
       const dayNow = Math.floor(bjNowTs / (1000 * 60 * 60 * 24));
       const dayLast = Math.floor(bjLastTs / (1000 * 60 * 60 * 24));
-
       const daysPassed = dayNow - dayLast;
       const isZh = lang === 'zh'; 
 
       if (daysPassed >= 1) {
-        // ✅ 可领：显示累积文案
         const CLEAR_THRESHOLD = 10;
         let amount = 0;
 
@@ -591,25 +599,18 @@ export default function Home() {
 
         amount = Math.min(amount, lockedReward);
         setLiveClaimable(amount);
-        
-        // 🔥 核心修改：文案随 lang 变
         setCountDownStr(isZh 
             ? `🔥 已累积 ${daysPassed} 天收益 🔥` 
             : `🔥 Accumulated ${daysPassed} days profit 🔥`);
 
       } else {
-        // ❌ 不可领：显示倒计时
         setLiveClaimable(0); 
-
         const msInDay = 1000 * 60 * 60 * 24;
         const currentDayMs = bjNowTs % msInDay;
         const diff = msInDay - currentDayMs;
-        
         const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
         const m = Math.floor((diff / (1000 * 60)) % 60);
         const s = Math.floor((diff / 1000) % 60);
-        
-        // 🔥 核心修改：倒计时随 lang 变
         setCountDownStr(isZh
             ? `下轮累积: ${h}时${m}分${s}秒`
             : `Next Accumulation: ${h}h ${m}m ${s}s`);
@@ -618,25 +619,20 @@ export default function Home() {
 
     checkAvailability(); 
     const interval = setInterval(checkAvailability, 1000);
-
     return () => clearInterval(interval);
   }, [lockedReward, lastVestingTime, lang]); 
 
-// ------------------------------------------------------------------
-  // ✅ 3. 收取释放 (最终自动版：呼叫后端 API + 全部提现)
-  // ------------------------------------------------------------------
   const claimReward = async () => {
-    if (!publicKey) return;
-    if (lockedReward <= 0.001) { // 稍微放宽一点精度
-        toast.error("暂无奖励可释放");
+    if (!publicKey) return toast.error(lang === 'zh' ? "请先连接钱包" : "Connect wallet first");
+    if (lockedReward <= 0) {
+        toast.error(lang === 'zh' ? "暂无奖励可释放" : "No rewards available");
         return;
     }
 
     setClaiming(true);
-    const toastId = toast.loading("正在链上处理，请勿关闭...");
+    const toastId = toast.loading(lang === 'zh' ? "正在核对考核期..." : "Verifying vesting period...");
 
     try {
-      // 呼叫后端
       const res = await fetch("/api/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -647,61 +643,79 @@ export default function Home() {
 
       if (!res.ok) throw new Error(data.error || "请求失败");
 
-      // ✅ 强制更新 UI (不用等下次 fetch)
-      // 直接把当前显示的余额改成 0
-      setLockedReward(0); 
+      setLockedReward(0);
       setLiveClaimable(0);
-      setLastReleasedAmount(data.amount || lockedReward); // 如果后端没返回，就用当前的
+      setLastReleasedAmount(data.amount || lockedReward);
       setLastTxHash(data.tx || "");
-
       setShowClaimSuccess(true);
-      toast.dismiss(toastId); 
-
-      // 检测当前屏幕宽度是否小于 768px (iPad/手机的标准分界线)
+      
+      toast.success(lang === 'zh' ? "领取成功！" : "Claim Successful!", { id: toastId });
       const isMobile = window.innerWidth < 768;
-
-      // 🎉 撒花庆祝
       confetti({
-      // 📱 手机只发 60 个，电脑发 150 个
-      particleCount: isMobile ? 60 : 150, 
-      spread: isMobile ? 50 : 70,        // 手机屏幕窄，扩散范围小一点
-      origin: { y: 0.6 },
-      colors: ['#22c55e', '#eab308', '#a855f7'],
-      disableForReducedMotion: true,     // 如果用户开启了减弱动态效果，直接不播
-      scalar: isMobile ? 0.8 : 1,        // 手机上粒子稍微小一点
-    });
+        particleCount: isMobile ? 60 : 150, 
+        spread: isMobile ? 50 : 70,       
+        origin: { y: 0.6 },
+        colors: ['#22c55e', '#eab308', '#a855f7'],
+        disableForReducedMotion: true,    
+        scalar: isMobile ? 0.8 : 1,       
+      });
 
-      // 🔁 双重保险：3秒后在后台悄悄刷新一次真实数据
       setTimeout(() => {
-          checkAvailability(); // 重新拉取一次 Supabase
+          if (typeof fetchUserData === 'function') fetchUserData(); 
       }, 3000);
 
     } catch (err: any) {
       console.error("Claim Error:", err);
-      // ⚠️ 特殊处理：如果已经发了但超时了，不要报错，算成功
+      
       if (err.message.includes("Time") || err.message.includes("timeout")) {
-          toast.success("请求已提交，请稍后刷新查看", { id: toastId });
+          toast.success(lang === 'zh' ? "请求已提交，请稍后查看" : "Request submitted", { id: toastId });
       } else {
-          toast.error(`领取异常: ${err.message}`, { id: toastId });
+          toast.error(err.message, { 
+            id: toastId,
+            duration: 4000,
+            style: {
+                background: '#333',
+                color: '#fff',
+                border: '1px solid #EF4444'
+            }
+          });
       }
     } finally {
       setClaiming(false);
     }
   };
-  
-  // ------------------------------------------------------------------
-  // ✅ 4. 渲染 UI
-  // ------------------------------------------------------------------
+
+  const getVestingStatus = () => {
+    if (lockedReward <= 0 || !lastVestingTime) return null;
+
+    const LOCK_DAYS = 30;
+    const now = Date.now();
+    const last = new Date(lastVestingTime).getTime();
+    const daysPassed = (now - last) / (1000 * 60 * 60 * 24);
+    const daysLeft = Math.ceil(LOCK_DAYS - daysPassed);
+
+    if (daysLeft > 0) {
+      return { 
+        isReady: false, 
+        text: lang === 'zh' ? `⏳ 考核中：还需 ${daysLeft} 天` : `⏳ Testing: ${daysLeft} days left` 
+      };
+    } else {
+      return { 
+        isReady: true, 
+        text: lang === 'zh' ? `🔓 考核达标！可全额领取` : `🔓 Unlocked! Claim All` 
+      };
+    }
+  };
+
+  const vestingStatus = getVestingStatus();
   const myLink = publicKey && baseUrl ? `${baseUrl}?ref=${publicKey.toBase58()}` : "";
   const contractAddress = "59eXaVJNG441QW54NTmpeDpXEzkuaRjSLm8M6N4Gpump"; 
-
   const openOkxDex = () => {
     const usdtMint = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
     const tokenMint = "59eXaVJNG441QW54NTmpeDpXEzkuaRjSLm8M6N4Gpump";
     const url = `https://www.okx.com/zh-hans/web3/dex-swap?inputChain=501&inputCurrency=${usdtMint}&outputChain=501&outputCurrency=${tokenMint}`;
     window.open(url, '_blank');
   };
-
   if (loading) {
     return (
       <div className="min-h-screen grok-starry-bg flex items-center justify-center">
@@ -709,8 +723,7 @@ export default function Home() {
       </div>
     );
   }
-
-  return (
+    return (
     <AnimatePresence mode="popLayout">
       <motion.div
         key="home-page"
@@ -726,69 +739,64 @@ export default function Home() {
             setLang={setLang}
         />
 
-        {/* 🌟 连接成功弹窗 */}
-        <AnimatePresence>
-          {showWelcome && (
-            <motion.div
-              initial={{ opacity: 0, y: -40, scale: 0.8 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.9 }}
-              transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              className="fixed top-28 left-1/2 -translate-x-1/2 z-[100] w-auto"
-            >
-              <div className="relative flex flex-col items-center justify-center gap-4 bg-[#0F1115]/95 backdrop-blur-2xl border border-white/10 p-6 rounded-[24px] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] overflow-hidden min-w-[280px]">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-green-500 to-transparent"></div>
-                <div className="flex flex-col items-center gap-2">
-                  <div className="w-12 h-12 bg-green-500/10 rounded-full flex items-center justify-center border border-green-500/20 shadow-[0_0_15px_rgba(34,197,94,0.3)]">
-                    <span className="text-2xl animate-[bounce_1s_infinite]">🎉</span>
-                  </div>
-                  <h3 className="text-xl font-black text-white tracking-widest drop-shadow-md">
-                    {t.success_connect}
-                  </h3>
+      <AnimatePresence>
+        {showWelcome && (
+          <motion.div
+            initial={{ opacity: 0, y: -40, scale: 0.8 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            className="fixed top-28 left-1/2 -translate-x-1/2 z-[100] w-auto"
+          >
+            <div className="relative flex flex-col items-center justify-center gap-4 bg-[#0F1115]/95 backdrop-blur-2xl border border-white/10 p-6 rounded-[24px] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] overflow-hidden min-w-[280px]">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-green-500 to-transparent"></div>
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-12 h-12 bg-green-500/10 rounded-full flex items-center justify-center border border-green-500/20 shadow-[0_0_15px_rgba(34,197,94,0.3)]">
+                  <span className="text-2xl animate-[bounce_1s_infinite]">🎉</span>
                 </div>
-                <button 
-                  onClick={() => {
-                    if(publicKey) {
-                        navigator.clipboard.writeText(publicKey.toBase58());
-                        toast.success(t.addr_copied);
-                    }
-                  }}
-                  className="flex items-center gap-2 bg-black/40 hover:bg-black/60 border border-white/5 px-4 py-2 rounded-full transition-all group active:scale-95 w-full justify-center"
-                >
-                  <div className="relative flex items-center justify-center">
-                    <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-green-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                  </div>
-                  <span className="text-gray-400 font-mono text-sm font-bold">
-                    {publicKey ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}` : ''}
-                  </span>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-600 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                </button>
+                <h3 className="text-xl font-black text-white tracking-widest drop-shadow-md">
+                  {t.success_connect}
+                </h3>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* 🎉 释放成功 史诗级弹窗 🎉 */}
-        <AnimatePresence>
-          {showClaimSuccess && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.5, rotateX: 90 }}
-                animate={{ opacity: 1, scale: 1, rotateX: 0 }}
-                exit={{ opacity: 0, scale: 0.5, rotateX: -90 }}
-                transition={{ type: "spring", damping: 15 }}
-                className="relative w-full max-w-sm bg-[#16171D] border border-green-500/50 rounded-3xl p-8 text-center shadow-[0_0_50px_-10px_rgba(34,197,94,0.4)] overflow-hidden"
+              <button 
+                onClick={() => {
+                  if(publicKey) {
+                      navigator.clipboard.writeText(publicKey.toBase58());
+                      toast.success(t.addr_copied);
+                  }
+                }}
+                className="flex items-center gap-2 bg-black/40 hover:bg-black/60 border border-white/5 px-4 py-2 rounded-full transition-all group active:scale-95 w-full justify-center"
               >
-                {/* 背景光效 */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-green-500/20 rounded-full blur-[60px] -z-10"></div>
-                
-                {/* 成功图标 */}
-                <div className="mx-auto w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mb-6 border border-green-500/20">
-                    <span className="text-4xl animate-bounce">💸</span>
+                <div className="relative flex items-center justify-center">
+                  <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                 </div>
+                <span className="text-gray-400 font-mono text-sm font-bold">
+                  {publicKey ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}` : ''}
+                </span>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-600 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showClaimSuccess && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.5, rotateX: 90 }}
+              animate={{ opacity: 1, scale: 1, rotateX: 0 }}
+              exit={{ opacity: 0, scale: 0.5, rotateX: -90 }}
+              transition={{ type: "spring", damping: 15 }}
+              className="relative w-full max-w-sm bg-[#16171D] border border-green-500/50 rounded-3xl p-8 text-center shadow-[0_0_50px_-10px_rgba(34,197,94,0.4)] overflow-hidden"
+            >
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-green-500/20 rounded-full blur-[60px] -z-10"></div>
+              <div className="mx-auto w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mb-6 border border-green-500/20">
+                  <span className="text-4xl animate-bounce">💸</span>
+              </div>
 
                 <h3 className="text-2xl font-black text-white mb-2 tracking-wide">
                   成功释放!
@@ -813,7 +821,6 @@ export default function Home() {
           )}
         </AnimatePresence>
 
-        {/* 🔗 绑定弹窗 */}
         <AnimatePresence>
             {isBinding && (
                 <motion.div
@@ -844,7 +851,6 @@ export default function Home() {
             )}
         </AnimatePresence>
 
-        {/* 📜 规则弹窗 (Pro Max 版) */}
         <AnimatePresence>
             {showRules && (
                 <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
@@ -854,14 +860,22 @@ export default function Home() {
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
                         className="w-full max-w-lg bg-[#16171D] border border-blue-500/20 rounded-3xl shadow-[0_0_60px_-15px_rgba(59,130,246,0.3)] relative overflow-hidden"
                     >
-                        {/* ✨ 氛围背景光 */}
+                        {/* 背景光效 */}
                         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px] -z-10 pointer-events-none"></div>
                         <div className="absolute bottom-0 left-0 w-40 h-40 bg-purple-500/10 rounded-full blur-[60px] -z-10 pointer-events-none"></div>
-
-                        {/* 🏷️ 标题栏 */}
+                        
+                        {/* 顶部标题栏 */}
                         <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
-                            <h3 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 flex items-center gap-2">
-                                📜 {t.more_rules} <span className="text-xs font-medium text-gray-600 bg-white/10 px-2 py-0.5 rounded-full border border-white/5">V1.0</span>
+                            <h3 className="text-2xl font-black flex items-center gap-3 relative z-10">
+                                {/* 🌟 核心修改：高级感流光渐变文字 */}
+                                <span className="bg-clip-text text-transparent bg-[linear-gradient(135deg,#e2e8f0_0%,#a78bfa_50%,#f472b6_100%)] drop-shadow-[0_2px_10px_rgba(167,139,250,0.5)] filter brightness-110 tracking-wide">
+                                    {t.rules_title}
+                                </span>
+
+                                {/* V2.0 徽章：也做个配套升级，让它亮一点 */}
+                                <span className="text-xs font-bold text-indigo-200/80 bg-indigo-500/10 px-2.5 py-1 rounded-full border border-indigo-400/30 shadow-[0_0_10px_rgba(99,102,241,0.2)] backdrop-blur-sm">
+                                    V1.0
+                                </span>
                             </h3>
                             <button 
                                 onClick={() => setShowRules(false)} 
@@ -871,69 +885,81 @@ export default function Home() {
                             </button>
                         </div>
 
-                        {/* 📝 内容区：卡片式布局 */}
                         <div className="p-6 space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar">
                             
-                            {/* 规则 1 */}
+                            {/* 🟢 规则 1: 5% 直推奖励 */}
                             <div className="group flex gap-4 p-4 rounded-2xl bg-black/20 border border-white/5 hover:border-blue-500/30 hover:bg-black/40 transition-all duration-300">
                                 <div className="shrink-0 w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 text-xl group-hover:scale-110 transition-transform">
-                                    🔗
+                                    🚀
                                 </div>
                                 <div>
-                                    <h4 className="text-blue-100 font-bold text-sm mb-1">永久绑定关系</h4>
+                                    <h4 className="text-blue-100 font-bold text-sm mb-1">{t.rule_1}</h4>
                                     <p className="text-xs text-gray-400 leading-relaxed">
-                                        连接钱包即刻自动锁定，链上数据不可篡改。一次绑定，永久享受下级返佣。
+                                        {t.rule_1_desc}
                                     </p>
                                 </div>
                             </div>
 
-                            {/* 规则 2 */}
+                            {/* 🟡 规则 2: 30天悬崖考核 */}
                             <div className="group flex gap-4 p-4 rounded-2xl bg-black/20 border border-white/5 hover:border-yellow-500/30 hover:bg-black/40 transition-all duration-300">
                                 <div className="shrink-0 w-10 h-10 rounded-xl bg-yellow-500/10 flex items-center justify-center border border-yellow-500/20 text-xl group-hover:scale-110 transition-transform">
                                     ⏳
                                 </div>
                                 <div>
-                                    <h4 className="text-yellow-100 font-bold text-sm mb-1">30天线性释放</h4>
+                                    <h4 className="text-yellow-100 font-bold text-sm mb-1">{t.rule_2}</h4>
                                     <p className="text-xs text-gray-400 leading-relaxed">
-                                        返佣奖励进入冻结池，每日自动释放 <span className="text-yellow-400 font-bold">1/30</span>。每日 00:00 刷新，支持<span className="text-white">“每日领取”</span>或<span className="text-white">“懒人累积”</span>。
+                                        {t.rule_2_desc}
                                     </p>
                                 </div>
                             </div>
 
-                            {/* 规则 3 */}
-                            <div className="group flex gap-4 p-4 rounded-2xl bg-black/20 border border-white/5 hover:border-purple-500/30 hover:bg-black/40 transition-all duration-300">
+                            {/* 🔴 规则 3: 动态回撤 (红色警示风格) */}
+                            <div className="group flex gap-4 p-4 rounded-2xl bg-black/20 border border-white/5 hover:border-red-500/40 hover:bg-red-900/10 transition-all duration-300">
+                                <div className="shrink-0 w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center border border-red-500/20 text-xl group-hover:scale-110 transition-transform">
+                                    🩸
+                                </div>
+                                <div>
+                                    {/* 标题用红色，强调严重性 */}
+                                    <h4 className="text-red-200 font-bold text-sm mb-1">{t.rule_3}</h4>
+                                    <p className="text-xs text-gray-400 leading-relaxed group-hover:text-gray-300">
+                                        {t.rule_3_desc}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* 💎 规则 4: 领取资格 */}
+                            <div className="group flex gap-4 p-4 rounded-2xl bg-black/20 border border-white/5 hover:border-cyan-500/30 hover:bg-black/40 transition-all duration-300">
+                                <div className="shrink-0 w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20 text-xl group-hover:scale-110 transition-transform">
+                                    💎
+                                </div>
+                                <div>
+                                    <h4 className="text-cyan-100 font-bold text-sm mb-1">{t.rule_4}</h4>
+                                    <p className="text-xs text-gray-400 leading-relaxed">
+                                        {t.rule_4_desc}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="group flex gap-4 p-4 rounded-2xl bg-black/20 border border-white/5 hover:border-purple-500/40 hover:bg-black/40 transition-all duration-300">
                                 <div className="shrink-0 w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20 text-xl group-hover:scale-110 transition-transform">
                                     🏆
                                 </div>
                                 <div>
-                                    <h4 className="text-purple-100 font-bold text-sm mb-1">实时荣耀榜单</h4>
+                                    <h4 className="text-purple-200 font-bold text-sm mb-1">{t.rule_5}</h4>
                                     <p className="text-xs text-gray-400 leading-relaxed">
-                                        全网实时更新直推人数与总业绩。冲击榜单前十，未来可能获得额外空投奖励。
+                                        {t.rule_5_desc}
                                     </p>
                                 </div>
                             </div>
 
-                            {/* 规则 4 */}
-                            <div className="group flex gap-4 p-4 rounded-2xl bg-black/20 border border-white/5 hover:border-green-500/30 hover:bg-black/40 transition-all duration-300">
-                                <div className="shrink-0 w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center border border-green-500/20 text-xl group-hover:scale-110 transition-transform">
-                                    🧹
-                                </div>
-                                <div>
-                                    <h4 className="text-green-100 font-bold text-sm mb-1">智能扫尾机制</h4>
-                                    <p className="text-xs text-gray-400 leading-relaxed">
-                                        当剩余冻结金额小于 <span className="text-green-400 font-mono">10 MGT</span> 时，系统将触发“扫尾”，允许您一次性提现所有余额，彻底清零！
-                                    </p>
-                                </div>
-                            </div>
                         </div>
 
-                        {/* ✅ 底部按钮 */}
                         <div className="p-5 border-t border-white/5 bg-black/20">
                             <button 
                                 onClick={() => setShowRules(false)}
                                 className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold shadow-lg shadow-blue-900/20 active:scale-95 transition-all text-sm tracking-wide"
                             >
-                                明白了，开始赚钱 🚀
+                                {t.got_it_btn}
                             </button>
                         </div>
                     </motion.div>
@@ -1006,11 +1032,11 @@ export default function Home() {
                                     </p>
                                     {/* 标签 */}
                                     <div className="mt-3 flex gap-2">
-                                        <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20">
-                                            🎁 实物兑换
+                                        <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20 whitespace-nowrap">
+                                            {t.intro_tag_1}
                                         </span>
-                                        <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20">
-                                            🏮 文化传承
+                                        <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20 whitespace-nowrap">
+                                            {t.intro_tag_2}
                                         </span>
                                     </div>
                                 </div>
@@ -1048,22 +1074,30 @@ export default function Home() {
         <div className="container mx-auto px-4 pt-16 md:pt-20 pb-10 text-center flex-grow"> 
             <motion.div variants={containerVariants} className="max-w-5xl mx-auto space-y-6 md:space-y-8">
               
-              {/* 1. 购买按钮 */}
-              <div className="mt-4 md:mt-6 flex justify-center pb-2">
+              {/* 🟢 OKX 抢购卡片 (精致宽幅版) */}
+              <div className="mt-4 md:mt-8 flex justify-center pb-2 w-full">
                 <button
                   onClick={openOkxDex}
-                  className="w-full max-w-md relative group cursor-pointer overflow-hidden rounded-2xl"
+                  className="w-full max-w-md md:max-w-5xl relative group cursor-pointer overflow-hidden rounded-2xl md:rounded-3xl shadow-lg hover:shadow-green-500/40 transition-all duration-300 transform md:hover:-translate-y-1"
                 >
+                    {/* 背景动画 */}
                     <div className="absolute inset-0 bg-gradient-to-r from-green-500 via-emerald-500 to-green-600 animate-gradient-x"></div>
-                    <div className="absolute inset-0 bg-white/20 group-hover:bg-white/10 transition-colors"></div>
-                    <div className="relative px-6 py-4 flex flex-col items-center justify-center">
-                        <div className="flex items-center gap-3">
-                            <span className="text-3xl animate-bounce">💊</span>
-                            <span className="text-xl md:text-2xl font-black text-white tracking-wide uppercase drop-shadow-md">
+                    <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors duration-300"></div>
+                    
+                    {/* 内容区域：高度回调到 md:py-6，更加紧凑 */}
+                    <div className="relative px-6 py-4 md:py-6 flex flex-col items-center justify-center">
+                        <div className="flex items-center gap-3 md:gap-4">
+                            {/* 图标：大小适中 */}
+                            <span className="text-3xl md:text-4xl animate-bounce">💊</span>
+                            
+                            {/* 主标题：字号 text-2xl/3xl，醒目但不过分 */}
+                            <span className="text-xl md:text-3xl font-black text-white tracking-wide uppercase drop-shadow-md">
                                 {t.buy_btn_main}
                             </span>
                         </div>
-                        <span className="text-green-100 text-xs md:text-sm font-medium mt-1 bg-black/20 px-3 py-0.5 rounded-full">
+                        
+                        {/* 副标题 */}
+                        <span className="text-green-100 text-xs md:text-sm font-bold mt-1 md:mt-2 bg-black/20 px-3 md:px-4 py-0.5 md:py-1 rounded-full backdrop-blur-sm">
                             {t.buy_btn_sub}
                         </span>
                     </div>
@@ -1163,30 +1197,63 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* 领取按钮 */}
-                <div>
-                      <button
-                      onClick={claimReward}
-                      disabled={!connected || claiming || liveClaimable <= 0.1}
-                      className={`
-                        relative btn-click-effect overflow-hidden px-5 py-6 rounded-xl font-bold text-sm transition-all shadow-lg flex flex-col items-center justify-center min-w-[110px]
-                        ${(!connected || claiming || liveClaimable <= 0)
-                          ? "bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700"
-                          : "bg-gradient-to-br from-green-500 to-emerald-700 hover:scale-105 text-white shadow-green-500/20 border border-green-400/20"
-                        }
-                      `}
-                    >
-                      {claiming ? (
-                        <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      ) : (
-                        <>
-                          <span className="text-2xl mb-1">{t.harvest_btn}</span>
-                          <span className="text-[10px] opacity-80 uppercase tracking-widest">
-                            {liveClaimable > 0 ? t.click_harvest : t.wait_release}
-                          </span>
-                        </>
-                      )}
-                    </button>
+                <div className="flex flex-col items-center shrink-0 ml-4 md:ml-8 md:w-56 transition-all">
+                  
+                  <button
+                    onClick={claimReward}
+                    // ⚠️ 逻辑优化：Loading 时禁用点击，但不要变成灰色，保持绿色
+                    disabled={!connected || claiming} 
+                    className={`
+                      relative btn-click-effect overflow-hidden rounded-2xl font-bold transition-all shadow-lg flex flex-col items-center justify-center 
+                      /* 📱 手机端：宽度 w-32，高度 py-4 */
+                      w-32 py-4 
+                      /* 💻 电脑端：宽度 100% (跟随容器)，高度 py-7 */
+                      md:w-full md:py-7
+                      
+                      ${(!connected)
+                        ? "bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700" // 没连钱包显示灰色
+                        : "bg-gradient-to-br from-green-500 to-emerald-700 text-white shadow-green-500/20 border border-green-400/20" // 连了钱包（包括Loading）一直保持绿色
+                      }
+                      
+                      ${claiming ? "cursor-wait opacity-90" : "hover:scale-105 hover:shadow-green-500/40"}
+                    `}
+                  >
+                    {/* 🔄 Loading 遮罩层 (绝对定位，悬浮在文字上面) */}
+                    {claiming && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-emerald-600/50 backdrop-blur-[2px] z-10">
+                        <div className="w-6 h-6 border-2 border-white/90 border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                    )}
+
+                    {/* 📝 文字层 (Loading 时变透明，但依然占位，防止按钮变小) */}
+                    <div className={`flex flex-col items-center transition-opacity duration-200 ${claiming ? "opacity-0" : "opacity-100"}`}>
+                      {/* 📱 手机 text-xl，💻 电脑 text-3xl */}
+                      <span className="text-xl md:text-3xl mb-1 drop-shadow-md">{t.harvest_btn}</span>
+                      
+                      {/* 副标题 */}
+                      <span className="text-[10px] md:text-xs opacity-80 uppercase tracking-widest scale-90 md:scale-100">
+                        {lockedReward > 0 ? t.click_harvest : t.wait_release}
+                      </span>
+                    </div>
+                  </button>
+
+                  {vestingStatus && (
+                    <div className={`
+                      /* 📱 手机：紧凑 mt-2 */
+                      mt-2 px-2 py-1.5 text-[10px] 
+                      /* 💻 电脑：宽松 mt-3，字号 text-sm，内边距 py-2.5 */
+                      md:mt-3 md:px-4 md:py-2.5 md:text-sm
+                      
+                      w-full flex justify-center items-center gap-1.5 rounded-xl font-bold border border-dashed whitespace-nowrap transition-all
+                      ${vestingStatus.isReady 
+                        ? 'bg-green-500/10 text-green-400 border-green-500/30 shadow-[0_0_10px_rgba(34,197,94,0.1)]' 
+                        : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'
+                      }
+                    `}>
+                      {vestingStatus.text.replace("考核中：", "")}
+                    </div>
+                  )}
+
                 </div>
               </motion.div>
               </motion.div>
@@ -1219,7 +1286,7 @@ export default function Home() {
               >
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 items-center divide-y md:divide-y-0 md:divide-x divide-gray-700/50">
                   <div className="flex flex-col items-center justify-center p-4">
-                    <p className="text-gray-400 text-xs md:text-sm mb-2">{t.my_commander}</p>
+                    <p className="text-gray-400 text-xs md:text-sm mb-2">{t.my_Leader}</p>
                     {inviter ? (
                         <div className="flex items-center space-x-2 bg-black/30 px-3 py-1.5 md:px-4 md:py-2 rounded-full border border-gray-700">
                             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
@@ -1304,7 +1371,7 @@ export default function Home() {
             </div>
         </footer>
 
-          {/* 📜 直推名单弹窗 */}
+        {/* 📜 直推名单弹窗 */}
         <AnimatePresence>
           {showRefListModal && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setShowRefListModal(false)}>
@@ -1318,7 +1385,7 @@ export default function Home() {
                 {/* 标题栏 */}
                 <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-white/5">
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    👥 直推伙伴 ({refList.length})
+                    👥 {t.ref_modal_title} ({refList.length})
                   </h3>
                   <button onClick={() => setShowRefListModal(false)} className="text-gray-400 hover:text-white transition-colors">
                     ✕
@@ -1330,7 +1397,7 @@ export default function Home() {
                   {loadingRefList ? (
                     <div className="text-center py-8 text-gray-500">
                       <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
-                      加载中...
+                      {t.loading}
                     </div>
                   ) : refList.length > 0 ? (
                     <div className="space-y-2">
@@ -1349,11 +1416,11 @@ export default function Home() {
                           <button 
                             onClick={() => {
                               navigator.clipboard.writeText(wallet);
-                              toast.success("已复制地址");
+                              toast.success(t.copy_success);
                             }}
                             className="text-gray-600 hover:text-blue-400 text-xs px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 transition-all"
                           >
-                            复制
+                            {t.copy_btn}
                           </button>
                         </div>
                       ))}
@@ -1361,7 +1428,7 @@ export default function Home() {
                   ) : (
                     <div className="text-center py-10 text-gray-500">
                       <p className="text-4xl mb-2">🏜️</p>
-                      <p>还没有直推伙伴，快去邀请吧！</p>
+                      <p>{t.no_ref_data}</p>
                     </div>
                   )}
                 </div>
@@ -1372,7 +1439,7 @@ export default function Home() {
                         onClick={() => setShowRefListModal(false)}
                         className="w-full py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-bold transition-all"
                     >
-                        关闭列表
+                        {t.close_btn}
                     </button>
                 </div>
               </motion.div>
@@ -1389,35 +1456,44 @@ export default function Home() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 50, scale: 0.95 }}
                 onClick={(e) => e.stopPropagation()} 
-                className="w-full max-w-4xl bg-[#16171D] border border-gray-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col h-[85vh]"
+                className="w-full max-w-4xl bg-[#16171D] border border-gray-800 rounded-3xl overflow-hidden shadow-[0_0_50px_-10px_rgba(168,85,247,0.2)] flex flex-col h-[85vh] relative"
               >
+                {/* ✨ 背景氛围光 (新增) */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 rounded-full blur-[80px] -z-10 pointer-events-none"></div>
+                <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px] -z-10 pointer-events-none"></div>
+
                 {/* 弹窗头部 */}
-                <div className="p-5 border-b border-gray-800 flex justify-between items-center bg-white/5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl">📊</span>
+                <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-white/[0.02]">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl filter drop-shadow-md">📊</span>
                     <div>
-                        <h3 className="text-lg font-bold text-white">实时推广排行榜</h3>
-                        <p className="text-xs text-gray-400">数据实时更新，竞争顶级荣耀</p>
+                        {/* 🌟 标题升级：高级流光渐变 */}
+                        <h3 className="text-xl font-black bg-clip-text text-transparent bg-[linear-gradient(135deg,#e2e8f0_0%,#a78bfa_50%,#f472b6_100%)] drop-shadow-[0_2px_10px_rgba(167,139,250,0.5)] tracking-wide">
+                            {t.modal_lb_title}
+                        </h3>
+                        <p className="text-xs text-gray-400 mt-0.5">{t.modal_lb_desc}</p>
                     </div>
                   </div>
-                  <button onClick={() => setShowLeaderboardModal(false)} className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 transition-all">
+                  <button onClick={() => setShowLeaderboardModal(false)} className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white border border-transparent hover:border-white/20 transition-all">
                     ✕
                   </button>
                 </div>
 
                 {/* 内容区域 - 放入 Leaderboard 组件 */}
-                <div className="flex-1 overflow-hidden bg-[#0b0c10]">
+                <div className="flex-1 overflow-hidden bg-[#0b0c10]/50 relative">
                     <Leaderboard currentUserWallet={publicKey?.toBase58()} />
                 </div>
                 
                 {/* 底部关闭栏 */}
-                <div className="p-4 border-t border-gray-800 bg-black/40 text-center">
-                    <p className="text-xs text-gray-500 mb-2">努力推广，下一个榜一就是你！</p>
+                <div className="p-5 border-t border-gray-800 bg-[#16171D] text-center z-10">
+                    <p className="text-xs text-gray-500 mb-3 font-medium tracking-wide">
+                        {t.modal_lb_tip}
+                    </p>
                     <button 
                         onClick={() => setShowLeaderboardModal(false)}
-                        className="w-full md:w-auto px-12 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-bold transition-all border border-gray-700"
+                        className="w-full md:w-auto px-16 py-3.5 bg-gradient-to-r from-gray-800 to-gray-700 hover:from-gray-700 hover:to-gray-600 text-white rounded-xl font-bold transition-all border border-gray-600/50 shadow-lg active:scale-95"
                     >
-                        关闭榜单
+                        {t.modal_lb_close}
                     </button>
                 </div>
               </motion.div>
