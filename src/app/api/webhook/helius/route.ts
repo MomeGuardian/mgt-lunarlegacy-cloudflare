@@ -27,7 +27,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // ⚡️ 快速读取数据，避免这里耗时
+    // ⚡️ 快速读取数据
     const body = await request.json();
     if (!body || !Array.isArray(body)) return NextResponse.json({ message: 'No tx' });
 
@@ -40,12 +40,12 @@ export async function POST(request: Request) {
 
     // =========================================================
     // 🧠 步骤 1: 内存聚合 (Memory Aggregation)
-    // 先把这批交易里所有的变动，在内存里算好，而不是一笔笔去查库
+    // 先把这批交易里所有的变动，在内存里算好
     // =========================================================
     
-    // 记录每个钱包的总净变动量 { "钱包A": +500, "钱包B": -200 }
+    // 记录每个钱包的总净变动量
     const walletNetChanges: Record<string, number> = {};
-    // 记录每个钱包对应的最新一笔交易签名 (用于记录流水)
+    // 记录每个钱包对应的最新一笔交易签名
     const walletLastSignature: Record<string, string> = {};
 
     for (const tx of body) {
@@ -70,9 +70,7 @@ export async function POST(request: Request) {
     }
 
     // =========================================================
-    // 🚀 步骤 2: 并发处理 (Parallel Execution)
-    // 因为我们已经把同一个钱包的变动合并了，所以现在的并发是安全的！
-    // (不同钱包之间互不影响，可以同时跑)
+    // 🚀 步骤 2: 并发处理 (包含 买入奖励 & 卖出惩罚)
     // =========================================================
     
     const processingPromises = Object.entries(walletNetChanges).map(async ([wallet, netAmount]) => {
@@ -80,7 +78,7 @@ export async function POST(request: Request) {
         if (Math.abs(netAmount * currentPrice) < 0.01) return;
 
         try {
-            // 2.1 查户口 (并发查，速度快)
+            // 2.1 查户口
             const { data: user } = await supabase
                 .from('users')
                 .select('referrer, net_mgt_holding, max_mgt_holding')
@@ -92,65 +90,86 @@ export async function POST(request: Request) {
             const currentNet = user.net_mgt_holding || 0;
             const currentMax = user.max_mgt_holding || 0;
             const newNet = currentNet + netAmount;
-            const signature = walletLastSignature[wallet]; // 取该用户在这批次里的最新签名
+            const signature = walletLastSignature[wallet];
 
-            let updateData: any = { net_mgt_holding: newNet };
-            let rewardableAmount = 0;
-
-            // 🟢 判断水位线
-            if (netAmount > 0 && newNet > currentMax) {
-                const amountPushingCeiling = newNet - currentMax;
-                rewardableAmount = amountPushingCeiling;
-                updateData.max_mgt_holding = newNet; 
-                console.log(`📈 [${wallet.slice(0,4)}] 水位突破! 新高:${newNet} (+${rewardableAmount.toFixed(2)})`);
-            } else {
-                console.log(`📉 [${wallet.slice(0,4)}] 变动:${netAmount}, 未破新高 (Max:${currentMax})`);
-            }
-
-            // 2.2 更新数据库 (记录水位)
+            // 🟢 更新水位线
+            // 注意：哪怕是卖出，max_mgt_holding 也不降，保持历史最高，防止填坑刷单
+            const updateData = { 
+                net_mgt_holding: newNet,
+                max_mgt_holding: newNet > currentMax ? newNet : currentMax
+            };
+            
+            // 写入数据库更新水位
             const { error: updateError } = await supabase.from('users').update(updateData).eq('wallet', wallet);
             if (updateError) throw updateError;
 
-            // 2.3 发奖
-            if (rewardableAmount > 0 && user.referrer) {
-                const usdValue = rewardableAmount * currentPrice;
-                const reward = rewardableAmount * 0.05;
+            // -------------------------------------------------
+            // 🔥 分支 A: 净买入 (发奖)
+            // -------------------------------------------------
+            if (netAmount > 0) {
+                if (newNet > currentMax) {
+                    const amountPushingCeiling = newNet - currentMax;
+                    const reward = amountPushingCeiling * 0.05;
+                    const usdValue = amountPushingCeiling * currentPrice;
 
-                if (usdValue >= 0.1) {
-                    // 查重流水：防止同一笔签名重复记录 (虽然我们做了内存聚合，但加上这个更保险)
-                    const { error: insertError } = await supabase.from('transactions').insert({
-                        signature,
-                        buyer: wallet,
-                        referrer: user.referrer,
-                        token_amount: rewardableAmount, // 这一批次的有效总增量
-                        reward_amount: reward,
-                        usdt_value: usdValue,
-                        status: 'processed_anti_wash_batch'
-                    });
+                    // 只有金额达标且有上级才发奖
+                    if (user.referrer && usdValue >= 0.1) {
+                         // 记录流水
+                         await supabase.from('transactions').insert({
+                            signature,
+                            buyer: wallet,
+                            referrer: user.referrer,
+                            token_amount: amountPushingCeiling,
+                            reward_amount: reward,
+                            usdt_value: usdValue,
+                            status: 'processed_anti_wash_batch'
+                        });
 
-                    if (!insertError) {
-                        // 并发加钱
+                        // 加钱
                         await Promise.all([
                             supabase.rpc('increment_team_volume', { wallet_address: user.referrer, amount_to_add: usdValue }),
                             supabase.rpc('increment_pending_reward', { wallet_address: user.referrer, reward_to_add: reward })
                         ]);
-                        console.log(`💰 [BATCH] 发奖给 ${user.referrer.slice(0,4)}: +${reward.toFixed(4)}`);
+                        
+                        console.log(`📈 [买入奖励] 给 ${user.referrer.slice(0,4)} 增加 ${reward.toFixed(4)} MGT`);
                     }
+                } else {
+                    console.log(`📉 [填坑] ${wallet.slice(0,4)} 买入 ${netAmount}，未破新高，无奖励`);
                 }
+            } 
+            
+            // -------------------------------------------------
+            // 💀 分支 B: 净卖出 (惩罚/回撤奖励)
+            // -------------------------------------------------
+            else if (netAmount < 0 && user.referrer) {
+                // 卖出时，netAmount 是负数 (例如 -1000)
+                // 惩罚金额 = 卖出量绝对值 * 5%
+                const soldAmount = Math.abs(netAmount);
+                const penalty = soldAmount * 0.05;
+
+                console.log(`📉 [卖出惩罚] 用户抛售 ${soldAmount}，扣除上级 ${user.referrer.slice(0,4)} 锁定奖励: ${penalty.toFixed(4)}`);
+
+                // 调用扣钱函数 decrement_locked_reward
+                const { error: penaltyError } = await supabase.rpc('decrement_locked_reward', {
+                    wallet_address: user.referrer,
+                    amount_to_remove: penalty
+                });
+                
+                if (penaltyError) console.error("惩罚扣除失败:", penaltyError);
             }
+
         } catch (innerErr) {
             console.error(`处理钱包 ${wallet} 出错:`, innerErr);
         }
     });
 
-    // 等待所有钱包处理完毕
+    // 等待所有处理完毕
     await Promise.allSettled(processingPromises);
 
     return NextResponse.json({ success: true });
 
   } catch (err: any) {
     console.error('Webhook Main Error:', err);
-    // 即使超时或出错，也尽量返回 200，避免 Helius 疯狂重试
     return NextResponse.json({ success: true, error: err.message });
   }
 }
