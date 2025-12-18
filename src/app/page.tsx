@@ -852,222 +852,181 @@ export default function Home() {
         </AnimatePresence>
 
         <AnimatePresence>
-            {showRules && (
-                <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-                    <motion.div 
-                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        className="w-full max-w-lg bg-[#16171D] border border-blue-500/20 rounded-3xl shadow-[0_0_60px_-15px_rgba(59,130,246,0.3)] relative overflow-hidden"
-                    >
-                        {/* 背景光效 */}
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px] -z-10 pointer-events-none"></div>
-                        <div className="absolute bottom-0 left-0 w-40 h-40 bg-purple-500/10 rounded-full blur-[60px] -z-10 pointer-events-none"></div>
-                        
-                        {/* 顶部标题栏 */}
-                        <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
-                            <h3 className="text-2xl font-black flex items-center gap-3 relative z-10">
-                                {/* 🌟 核心修改：高级感流光渐变文字 */}
-                                <span className="bg-clip-text text-transparent bg-[linear-gradient(135deg,#e2e8f0_0%,#a78bfa_50%,#f472b6_100%)] drop-shadow-[0_2px_10px_rgba(167,139,250,0.5)] filter brightness-110 tracking-wide">
-                                    {t.rules_title}
-                                </span>
-
-                                {/* V2.0 徽章：也做个配套升级，让它亮一点 */}
-                                <span className="text-xs font-bold text-indigo-200/80 bg-indigo-500/10 px-2.5 py-1 rounded-full border border-indigo-400/30 shadow-[0_0_10px_rgba(99,102,241,0.2)] backdrop-blur-sm">
-                                    V1.0
-                                </span>
-                            </h3>
-                            <button 
-                                onClick={() => setShowRules(false)} 
-                                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-all border border-transparent hover:border-white/20"
-                            >
-                                ✕
-                            </button>
-                        </div>
-
-                        <div className="p-6 space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar">
-                            
-                            {/* 🟢 规则 1: 5% 直推奖励 */}
-                            <div className="group flex gap-4 p-4 rounded-2xl bg-black/20 border border-white/5 hover:border-blue-500/30 hover:bg-black/40 transition-all duration-300">
-                                <div className="shrink-0 w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 text-xl group-hover:scale-110 transition-transform">
-                                    🚀
-                                </div>
-                                <div>
-                                    <h4 className="text-blue-100 font-bold text-sm mb-1">{t.rule_1}</h4>
-                                    <p className="text-xs text-gray-400 leading-relaxed">
-                                        {t.rule_1_desc}
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* 🟡 规则 2: 30天悬崖考核 */}
-                            <div className="group flex gap-4 p-4 rounded-2xl bg-black/20 border border-white/5 hover:border-yellow-500/30 hover:bg-black/40 transition-all duration-300">
-                                <div className="shrink-0 w-10 h-10 rounded-xl bg-yellow-500/10 flex items-center justify-center border border-yellow-500/20 text-xl group-hover:scale-110 transition-transform">
-                                    ⏳
-                                </div>
-                                <div>
-                                    <h4 className="text-yellow-100 font-bold text-sm mb-1">{t.rule_2}</h4>
-                                    <p className="text-xs text-gray-400 leading-relaxed">
-                                        {t.rule_2_desc}
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* 🔴 规则 3: 动态回撤 (红色警示风格) */}
-                            <div className="group flex gap-4 p-4 rounded-2xl bg-black/20 border border-white/5 hover:border-red-500/40 hover:bg-red-900/10 transition-all duration-300">
-                                <div className="shrink-0 w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center border border-red-500/20 text-xl group-hover:scale-110 transition-transform">
-                                    🩸
-                                </div>
-                                <div>
-                                    {/* 标题用红色，强调严重性 */}
-                                    <h4 className="text-red-200 font-bold text-sm mb-1">{t.rule_3}</h4>
-                                    <p className="text-xs text-gray-400 leading-relaxed group-hover:text-gray-300">
-                                        {t.rule_3_desc}
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* 💎 规则 4: 领取资格 */}
-                            <div className="group flex gap-4 p-4 rounded-2xl bg-black/20 border border-white/5 hover:border-cyan-500/30 hover:bg-black/40 transition-all duration-300">
-                                <div className="shrink-0 w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20 text-xl group-hover:scale-110 transition-transform">
-                                    💎
-                                </div>
-                                <div>
-                                    <h4 className="text-cyan-100 font-bold text-sm mb-1">{t.rule_4}</h4>
-                                    <p className="text-xs text-gray-400 leading-relaxed">
-                                        {t.rule_4_desc}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="group flex gap-4 p-4 rounded-2xl bg-black/20 border border-white/5 hover:border-purple-500/40 hover:bg-black/40 transition-all duration-300">
-                                <div className="shrink-0 w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20 text-xl group-hover:scale-110 transition-transform">
-                                    🏆
-                                </div>
-                                <div>
-                                    <h4 className="text-purple-200 font-bold text-sm mb-1">{t.rule_5}</h4>
-                                    <p className="text-xs text-gray-400 leading-relaxed">
-                                        {t.rule_5_desc}
-                                    </p>
-                                </div>
-                            </div>
-
-                        </div>
-
-                        <div className="p-5 border-t border-white/5 bg-black/20">
-                            <button 
-                                onClick={() => setShowRules(false)}
-                                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold shadow-lg shadow-blue-900/20 active:scale-95 transition-all text-sm tracking-wide"
-                            >
-                                {t.got_it_btn}
-                            </button>
-                        </div>
-                    </motion.div>
+          {showRules && (
+            <div className="fixed inset-0 z-[80] flex items-center justify-center px-4">
+              {/* 1. 背景层：纯黑高不透明度，无模糊，极速渲染 */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }} // 极快过渡
+                onClick={() => setShowRules(false)}
+                className="absolute inset-0 bg-black/95"
+              />
+        
+              {/* 2. 弹窗主体：纯色背景，去除所有光效和阴影 */}
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 15 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="relative w-full max-w-lg bg-[#111] border border-gray-800 rounded-2xl overflow-hidden"
+              >
+                {/* 顶部标题：黑底白字，极致对比度 */}
+                <div className="p-5 border-b border-gray-800 flex justify-between items-center bg-[#161616]">
+                  <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+                    {t.rules_title}
+                    <span className="text-[10px] font-normal text-gray-500 border border-gray-700 px-1.5 py-0.5 rounded">V1.0</span>
+                  </h3>
+                  <button
+                    onClick={() => setShowRules(false)}
+                    className="w-8 h-8 flex items-center justify-center text-gray-500 active:text-white transition-colors"
+                  >
+                    ✕
+                  </button>
                 </div>
-            )}
+          
+                {/* 内容区：循环渲染，无复杂嵌套 */}
+                <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto overscroll-contain">
+                  {[
+                    { icon: "🚀", title: t.rule_1, desc: t.rule_1_desc, color: "text-blue-400" },
+                    { icon: "⏳", title: t.rule_2, desc: t.rule_2_desc, color: "text-yellow-400" },
+                    { icon: "🩸", title: t.rule_3, desc: t.rule_3_desc, color: "text-red-400" }, // 红色保留警示色
+                    { icon: "💎", title: t.rule_4, desc: t.rule_4_desc, color: "text-cyan-400" },
+                    { icon: "🏆", title: t.rule_5, desc: t.rule_5_desc, color: "text-purple-400" },
+                  ].map((rule, idx) => (
+                    <div key={idx} className="flex gap-3 items-start">
+                      {/* 图标：直接显示，去掉背景框 */}
+                      <div className="shrink-0 text-xl pt-0.5 opacity-90">
+                        {rule.icon}
+                      </div>
+                      <div>
+                        {/* 标题：使用文字颜色区分，而不是背景色 */}
+                        <h4 className={`text-sm font-bold mb-0.5 ${rule.color}`}>
+                            {rule.title}
+                        </h4>
+                        <p className="text-xs text-gray-500 leading-relaxed">
+                          {rule.desc}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                {/* 底部按钮：简单的白色按钮，点击反馈清晰 */}
+                <div className="p-5 border-t border-gray-800 bg-[#161616]">
+                  <button
+                    onClick={() => setShowRules(false)}
+                    className="w-full py-3 rounded-lg bg-white text-black font-bold text-sm active:bg-gray-200 active:scale-[0.98] transition-all"
+                  >
+                    {t.got_it_btn}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
         </AnimatePresence>
 
-        {/* ℹ️ 项目介绍弹窗 (非遗文化限定版) */}
         <AnimatePresence>
-            {showIntro && (
-                <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4">
-                    <motion.div 
-                        initial={{ opacity: 0, scale: 0.9, rotateX: 10 }}
-                        animate={{ opacity: 1, scale: 1, rotateX: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, rotateX: 10 }}
-                        className="w-full max-w-lg bg-[#121212] border border-white/10 rounded-3xl shadow-[0_0_80px_-20px_rgba(168,85,247,0.4)] relative overflow-hidden"
-                    >
-                        {/* 🏮 背景氛围：左下紫气东来，右上金光闪耀 */}
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-[80px] -z-10 pointer-events-none"></div>
-                        <div className="absolute bottom-0 left-0 w-56 h-56 bg-purple-600/15 rounded-full blur-[60px] -z-10 pointer-events-none"></div>
-
-                        {/* 🏷️ 标题栏 */}
-                        <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
-                            <h3 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-amber-400 flex items-center gap-2">
-                                ℹ️ {t.intro_title} 
-                            </h3>
-                            <button 
-                                onClick={() => setShowIntro(false)} 
-                                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-all"
-                            >
-                                ✕
-                            </button>
-                        </div>
-
-                        {/* 📜 内容区 */}
-                        <div className="p-6 space-y-5">
-                            
-                            {/* 1. 核心愿景卡片 (Solana x 非遗) */}
-                            <div className="group relative p-5 rounded-2xl bg-gradient-to-br from-[#1A1A2E] to-[#16213E] border border-blue-500/20 overflow-hidden hover:border-blue-500/40 transition-all">
-                                {/* 装饰图标 */}
-                                <div className="absolute top-2 right-3 text-5xl opacity-10 group-hover:opacity-20 transition-opacity grayscale group-hover:grayscale-0">
-                                    🌏
-                                </div>
-                                <div className="relative z-10">
-                                    <h4 className="text-blue-200 font-bold text-base mb-2 flex items-center gap-2">
-                                        <span className="w-1 h-4 bg-blue-500 rounded-full"></span>
-                                        {t.intro_core_title}
-                                    </h4>
-                                    <p className="text-xs md:text-sm text-gray-400 leading-relaxed text-justify">
-                                        {t.intro_core_desc}
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* 2. 生态落地卡片 (实物兑换) */}
-                            <div className="group relative p-5 rounded-2xl bg-gradient-to-br from-[#1F1100] to-[#2E1A05] border border-amber-500/20 overflow-hidden hover:border-amber-500/40 transition-all">
-                                {/* 装饰图标 - 琥珀色光晕 */}
-                                <div className="absolute -inset-1 bg-amber-500/5 blur-xl group-hover:bg-amber-500/10 transition-all"></div>
-                                <div className="absolute top-2 right-3 text-5xl opacity-10 group-hover:opacity-20 transition-opacity grayscale group-hover:grayscale-0">
-                                    🏺
-                                </div>
-                                
-                                <div className="relative z-10">
-                                    <h4 className="text-amber-200 font-bold text-base mb-2 flex items-center gap-2">
-                                        <span className="w-1 h-4 bg-amber-500 rounded-full"></span>
-                                        {t.intro_safe_title}
-                                    </h4>
-                                    <p className="text-xs md:text-sm text-gray-400 leading-relaxed text-justify">
-                                        {t.intro_safe_desc}
-                                    </p>
-                                    {/* 标签 */}
-                                    <div className="mt-3 flex gap-2">
-                                        <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20 whitespace-nowrap">
-                                            {t.intro_tag_1}
-                                        </span>
-                                        <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20 whitespace-nowrap">
-                                            {t.intro_tag_2}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* 3. CA 复制交互区 */}
-                            <div className="space-y-2 pt-2">
-                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider pl-1">{t.intro_ca_label}</p>
-                                <button
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(contractAddress);
-                                        toast.success(t.addr_copied);
-                                        if (navigator.vibrate) navigator.vibrate(50);
-                                    }}
-                                    className="w-full flex items-center justify-between bg-black/40 hover:bg-black/60 border border-white/10 hover:border-purple-500/30 rounded-xl p-4 transition-all group active:scale-95"
-                                >
-                                    <div className="flex flex-col items-start gap-1 overflow-hidden">
-                                        <span className="text-xs font-mono font-bold text-purple-400 break-all text-left">
-                                            {contractAddress}
-                                        </span>
-                                    </div>
-                                    <span className="shrink-0 bg-white/5 p-2 rounded-lg group-hover:bg-purple-500/20 group-hover:text-purple-400 transition-colors">
-                                        📄
-                                    </span>
-                                </button>
-                            </div>
-
-                        </div>
-                    </motion.div>
+          {showIntro && (
+            <div className="fixed inset-0 z-[80] flex items-center justify-center px-4">
+              {/* 1. 背景层：纯黑高遮罩，无模糊 */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                onClick={() => setShowIntro(false)}
+                className="absolute inset-0 bg-black/95"
+              />
+        
+              {/* 2. 弹窗主体：纯色背景，锐利边框 */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+                className="relative w-full max-w-lg bg-[#111] border border-gray-800 rounded-2xl overflow-hidden"
+              >
+                {/* 标题栏：极简布局 */}
+                <div className="p-5 border-b border-gray-800 flex justify-between items-center bg-[#161616]">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <span className="text-xl">ℹ️</span> {t.intro_title}
+                  </h3>
+                  <button
+                    onClick={() => setShowIntro(false)}
+                    className="w-8 h-8 flex items-center justify-center text-gray-500 active:text-white transition-colors"
+                  >
+                    ✕
+                  </button>
                 </div>
-            )}
+          
+                {/* 内容区 */}
+                <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto overscroll-contain">
+                  
+                  {/* 1. 核心愿景：去掉了复杂的蓝紫色渐变，改为深灰底色 */}
+                  <div className="p-4 rounded-xl bg-[#161616] border border-gray-800">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-blue-400 font-bold text-sm flex items-center gap-2">
+                        <span className="w-1 h-3 bg-blue-500 rounded-full"></span>
+                        {t.intro_core_title}
+                      </h4>
+                      <span className="text-xl grayscale opacity-50">🌏</span>
+                    </div>
+                    <p className="text-xs text-gray-400 leading-relaxed text-justify">
+                      {t.intro_core_desc}
+                    </p>
+                  </div>
+          
+                  {/* 2. 生态落地：去掉了琥珀色光晕，保持统一风格 */}
+                  <div className="p-4 rounded-xl bg-[#161616] border border-gray-800">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-amber-400 font-bold text-sm flex items-center gap-2">
+                        <span className="w-1 h-3 bg-amber-500 rounded-full"></span>
+                        {t.intro_safe_title}
+                      </h4>
+                      <span className="text-xl grayscale opacity-50">🏺</span>
+                    </div>
+                    <p className="text-xs text-gray-400 leading-relaxed text-justify mb-3">
+                      {t.intro_safe_desc}
+                    </p>
+                    {/* 标签组：朴素的线框风格 */}
+                    <div className="flex gap-2">
+                      <span className="text-[10px] text-gray-500 border border-gray-700 px-2 py-0.5 rounded">
+                        {t.intro_tag_1}
+                      </span>
+                      <span className="text-[10px] text-gray-500 border border-gray-700 px-2 py-0.5 rounded">
+                        {t.intro_tag_2}
+                      </span>
+                    </div>
+                  </div>
+          
+                  {/* 3. CA 复制区：扁平化设计 */}
+                  <div className="pt-2">
+                    <p className="text-[10px] text-gray-600 font-bold uppercase tracking-wider mb-1.5 pl-1">
+                      {t.intro_ca_label}
+                    </p>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(contractAddress);
+                        toast.success(t.addr_copied);
+                        if (navigator.vibrate) navigator.vibrate(50);
+                      }}
+                      className="w-full flex items-center justify-between bg-[#0a0a0a] border border-gray-800 rounded-xl p-3 active:border-gray-600 active:bg-[#222] transition-all"
+                    >
+                      <span className="text-xs font-mono font-bold text-gray-300 break-all text-left">
+                        {contractAddress}
+                      </span>
+                      <span className="shrink-0 ml-3 text-gray-500">
+                        📄
+                      </span>
+                    </button>
+                  </div>
+                    
+                </div>
+              </motion.div>
+            </div>
+          )}
         </AnimatePresence>
           
         {/* 主容器：直通模式 (Direct Mode) */}
@@ -1113,34 +1072,32 @@ export default function Home() {
               >
                 {/* 💰 卡片 1：直推总业绩 */}
               <motion.div
-                onClick={() => setShowLeaderboardModal(true)} 
-                whileHover={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.03)" }}
-                whileTap={{ scale: 0.98 }}
-                className="cursor-pointer relative overflow-hidden p-6 rounded-2xl border border-gray-800/50 bg-[#16171D]/50 backdrop-blur-sm flex items-center justify-between group hover:border-blue-500/30 transition-all shadow-lg"
+                onClick={() => setShowLeaderboardModal(true)}
+                whileHover={{ scale: 1.01, backgroundColor: "rgba(255,255,255,0.05)" }}
+                whileTap={{ scale: 0.97 }}
+                className="transform-gpu cursor-pointer relative overflow-hidden p-6 rounded-2xl border border-gray-800 bg-[#16171D] flex items-center justify-between group shadow-lg active:opacity-80 transition-all"
               >
-              <div className="absolute inset-0 bg-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity blur-xl"></div>
-
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="text-gray-400 text-sm font-medium">{t.team_volume}</p>
-                  <span className="text-[10px] bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded border border-gray-700">USD</span>
-                  {/* 查看榜单 */}
-                  <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] bg-yellow-500/10 text-yellow-500 px-1.5 py-0.5 rounded border border-yellow-500/20 font-bold">
+                <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-gray-400 text-sm font-medium">{t.team_volume}</p>
+                    <span className="text-[10px] bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded border border-gray-700">USD</span>
+                    <span className="opacity-50 group-hover:opacity-100 transition-opacity text-[10px] bg-yellow-500/10 text-yellow-500 px-1.5 py-0.5 rounded border border-yellow-500/20 font-bold">
                       {t.check_leaderboard}
-                  </span>
+                    </span>
+                  </div>
+                        
+                  <p className="text-xs text-gray-600 mb-2">{t.team_volume_desc}</p>
+                        
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-black text-white tracking-tight">
+                      {connected ? `$${teamVolume.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00"}
+                    </span>
+                  </div>
                 </div>
 
-                <p className="text-xs text-gray-600 mb-2">{t.team_volume_desc}</p>
-
-                <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-black text-white tracking-tight relative z-10">
-                    {connected ? `$${teamVolume.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "$0.00"}
-                  </span>
-                </div>
-              </div>
-
-                {/* 图标装饰 */}
-                <div className="w-12 h-12 bg-yellow-500/10 rounded-xl flex items-center justify-center border border-yellow-500/20 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300">
+                <div className="w-12 h-12 bg-yellow-500/10 rounded-xl flex items-center justify-center border border-yellow-500/20 group-hover:scale-105 transition-transform duration-200">
                   <span className="text-2xl">🏆</span>
                 </div>
               </motion.div>
