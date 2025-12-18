@@ -7,7 +7,12 @@ import {
     Transaction, 
     ComputeBudgetProgram 
 } from '@solana/web3.js';
-import { getAssociatedTokenAddress, createTransferInstruction } from '@solana/spl-token';
+// 👇 1. 新增引入 createAssociatedTokenAccountInstruction
+import { 
+    getAssociatedTokenAddress, 
+    createTransferInstruction, 
+    createAssociatedTokenAccountInstruction 
+} from '@solana/spl-token';
 import bs58 from 'bs58';
 
 export const runtime = 'edge';
@@ -25,7 +30,7 @@ export async function POST(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // 2. 查余额 (⚠️ 必须多查两个字段: total_claimed 和 last_vesting_time)
+    // 2. 查余额 (保持你的逻辑: total_claimed 和 last_vesting_time)
     const { data: user, error: dbError } = await supabase
       .from('users')
       .select('locked_reward, total_claimed, last_vesting_time')
@@ -34,11 +39,8 @@ export async function POST(request: Request) {
 
     if (dbError || !user) throw new Error("User not found");
 
-    // 🔥🔥 核心修改：30天线性释放算法 🔥🔥
-    // 算法逻辑：总权益 / 30天 = 每天释放量。  每天释放量 * 距离上次领取得时间 = 本次可领。
-    
+    // 🔥🔥 30天线性释放算法 (完全保留你的逻辑) 🔥🔥
     const now = Date.now();
-    // 如果是第一次领，就从现在开始算；否则从上次领取时间算
     const lastTime = user.last_vesting_time ? new Date(user.last_vesting_time).getTime() : now;
     
     const currentLocked = user.locked_reward || 0;
@@ -48,12 +50,12 @@ export async function POST(request: Request) {
     const totalPool = currentLocked + claimedSoFar;
 
     if (totalPool <= 0.000001) {
-       return NextResponse.json({ success: true, amount: 0, message: "暂无资产" });
+      return NextResponse.json({ success: true, amount: 0, message: "暂无资产" });
     }
 
     // 计算过去了多少毫秒
     const msPassed = now - lastTime;
-    // 换算成天 (例如 0.04 天)
+    // 换算成天
     const daysPassed = msPassed / (1000 * 60 * 60 * 24);
 
     // 每天释放多少
@@ -67,7 +69,7 @@ export async function POST(request: Request) {
         amountToClaim = currentLocked;
     }
 
-    // 🛡️ 限制 2: 最小提现门槛 (攒够 0.1 再让领，省 Gas)
+    // 🛡️ 限制 2: 最小提现门槛
     if (amountToClaim < 0.1) {
         return NextResponse.json({ 
             success: false, 
@@ -77,9 +79,9 @@ export async function POST(request: Request) {
 
     console.log(`🧮 线性计算: 总盘 ${totalPool} | 过去 ${daysPassed.toFixed(4)} 天 | 本次释放 ${amountToClaim}`);
 
-    // 3. 准备转账 (保留你的极速模式)
+    // 3. 准备转账 (⚡️ 极速模式 + 自动开户)
     const privateKey = process.env.PAYER_PRIVATE_KEY;
-    const connection = new Connection(process.env.NEXT_PUBLIC_RPC_URL!, 'processed'); // ⚡️ 极速
+    const connection = new Connection(process.env.NEXT_PUBLIC_RPC_URL!, 'processed');
     
     const payer = Keypair.fromSecretKey(bs58.decode(privateKey));
     const mint = new PublicKey(process.env.NEXT_PUBLIC_TOKEN_MINT!); 
@@ -91,13 +93,34 @@ export async function POST(request: Request) {
     const decimals = 6; 
     const transferAmount = Math.floor(amountToClaim * Math.pow(10, decimals));
 
-    const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 });
+    // 稍微提高一点计算预算，因为可能要执行“创建账户”指令
+    const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({ units: 300_000 });
     const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100_000 });
 
     const transaction = new Transaction()
       .add(modifyComputeUnits)
-      .add(addPriorityFee)
-      .add(createTransferInstruction(payerATA, recipientATA, payer.publicKey, transferAmount));
+      .add(addPriorityFee);
+
+    // 👇👇👇 核心逻辑：检查并自动创建账户 👇👇👇
+    // 先去链上查一下，这个收款地址存在吗？
+    const recipientAccountInfo = await connection.getAccountInfo(recipientATA);
+
+    if (!recipientAccountInfo) {
+        console.log(`🆕 检测到新用户 ${wallet} (无 SOL/无户头)，正在协助开户...`);
+        // 增加一条指令：由 payer (项目方) 出钱帮用户开户
+        transaction.add(
+            createAssociatedTokenAccountInstruction(
+                payer.publicKey, // 付钱的人 (0.002 SOL)
+                recipientATA,    // 要创建的账户地址
+                recipient,       // 账户的主人 (用户)
+                mint             // 代币类型 (MGT)
+            )
+        );
+    }
+    // 👆👆👆 核心逻辑结束 👆👆👆
+
+    // 最后添加转账指令
+    transaction.add(createTransferInstruction(payerATA, recipientATA, payer.publicKey, transferAmount));
 
     transaction.recentBlockhash = (await connection.getLatestBlockhash('processed')).blockhash;
     transaction.feePayer = payer.publicKey;
@@ -112,11 +135,11 @@ export async function POST(request: Request) {
 
     console.log(`✅ 交易广播: ${signature}`);
 
-    // 4. 更新数据库 (⚠️ 逻辑变了：扣余额，加已领，更新时间)
+    // 4. 更新数据库 (保持你的逻辑)
     const { error: updateError } = await supabase.from('users').update({ 
       locked_reward: currentLocked - amountToClaim, // 余额变少
       total_claimed: claimedSoFar + amountToClaim,  // 已领变多
-      last_vesting_time: new Date().toISOString()   // 重置闹钟到“现在”
+      last_vesting_time: new Date().toISOString()   // 重置闹钟
     }).eq('wallet', wallet);
 
     if (updateError) console.error("DB Update Error", updateError);
