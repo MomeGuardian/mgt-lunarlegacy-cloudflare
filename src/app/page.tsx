@@ -224,7 +224,19 @@ const Navbar = ({
 
         <div className="flex items-center gap-2">
           <div id="mini-wallet-wrapper" className="origin-right relative">
-            <UnifiedWalletButton />
+            <UnifiedWalletButton 
+              buttonClassName="
+                !flex !items-center !justify-center
+                !font-sans !font-bold !text-sm !tracking-wide !leading-none
+                !h-[40px] !px-6 !min-w-[100px]
+                !rounded-full md:!rounded-xl
+                !bg-[#16171D] !text-white 
+                !border !border-white/10 
+                hover:!bg-white/10 hover:!border-purple-500/50 hover:!text-purple-200 
+                transition-all duration-300 active:!scale-95 shadow-lg shadow-black/20
+              "
+              currentUserClassName="!p-0 !bg-transparent hover:!bg-transparent !border-none"
+            />
           </div>
 
           <div className="relative">
