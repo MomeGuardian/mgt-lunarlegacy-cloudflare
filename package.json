@@ -1,6 +1,7 @@
 {
   "name": "mgt-lunar-legacy",
   "version": "0.1.0",
+  "packageManager": "pnpm@10.11.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
