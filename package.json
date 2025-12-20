@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@jup-ag/wallet-adapter": "^0.2.6",
     "@keystonehq/sdk": "0.9.0",
     "@okxconnect/solana-provider": "^1.9.1",
     "@okxconnect/universal-provider": "^1.9.1",
