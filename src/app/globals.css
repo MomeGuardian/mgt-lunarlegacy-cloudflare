@@ -105,185 +105,8 @@ body {
 }
 
 /* ========================================================================
-   💎 钱包适配器美化 (Wallet Adapter Overrides) - 高端黑金磨砂风格
+  🎯 全局按钮点击缩放效果 (Click Effect)
    ======================================================================== */
-
-/* 1. 弹窗背景遮罩：加重模糊，更有质感 */
-.wallet-adapter-modal-overlay {
-  background: rgba(0, 0, 0, 0.7) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  z-index: 9998 !important;
-}
-
-/* 2. 核心弹窗卡片：去灰底，改黑透，加光晕 */
-.wallet-adapter-modal-wrapper {
-  background: rgba(10, 10, 10, 0.95) !important; /* 深黑背景 */
-  border: 1px solid rgba(147, 51, 234, 0.3) !important; /* 紫色微边框 */
-  box-shadow: 0 0 40px -10px rgba(147, 51, 234, 0.3) !important; /* 紫色霓虹光晕 */
-  border-radius: 24px !important;
-  padding: 20px !important;
-  width: 100% !important;
-  max-width: 360px !important;
-  box-sizing: border-box !important;
-  font-family: var(--font-sans), sans-serif !important;
-  z-index: 9999 !important;
-  margin: 16px !important;
-}
-
-/* 📱 针对移动端的额外保险措施 */
-@media (max-width: 480px) {
-  .wallet-adapter-modal-container {
-    margin: 0 !important;
-     padding: 0 16px !important; /* 给左右留点缝隙 */
-  }
-  
-  .wallet-adapter-modal-wrapper {
-     flex: 1 !important; /* 让它在小屏幕上更灵活 */
-  }
-}
-
-/* 3. 标题文字："Connect a wallet..." */
-.wallet-adapter-modal-title {
-  color: #fff !important;
-  font-size: 1.25rem !important; /* 20px */
-  font-weight: 800 !important;
-  text-align: center !important;
-  margin-bottom: 24px !important;
-  letter-spacing: -0.02em !important;
-  background: linear-gradient(to right, #fff, #a8a8a8) !important;
-  -webkit-background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-}
-
-/* 4. 钱包列表容器 */
-.wallet-adapter-modal-list {
-  margin: 0 !important;
-  padding: 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 12px !important; /* 按钮之间的间距 */
-}
-
-/* 5. 具体的钱包按钮 (OKX, Phantom...) */
-.wallet-adapter-button {
-  background: rgba(255, 255, 255, 0.05) !important; /* 默认微亮背景 */
-  border: 1px solid rgba(255, 255, 255, 0.05) !important;
-  color: #e5e7eb !important; /* 灰白文字 */
-  font-weight: 600 !important;
-  font-size: 16px !important;
-  height: 56px !important; /* 按钮增高 */
-  border-radius: 16px !important;
-  padding: 0 20px !important;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  justify-content: flex-start !important; /* 图标文字靠左对齐 */
-}
-
-/* 6. 按钮悬停效果 (鼠标放上去的时候) */
-.wallet-adapter-button:not([disabled]):hover {
-  background: rgba(147, 51, 234, 0.15) !important; /* 紫色高亮背景 */
-  border-color: rgba(147, 51, 234, 0.5) !important; /* 紫色边框 */
-  color: #fff !important;
-  transform: translateY(-2px) !important; /* 微微上浮 */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
-}
-
-/* 7. 钱包图标 */
-.wallet-adapter-button-icon {
-  width: 32px !important;
-  height: 32px !important;
-  margin-right: 16px !important;
-}
-
-/* 8. 按钮里的 "Detected" 标签 (针对 OKX) */
-.wallet-adapter-modal-list .wallet-adapter-button span {
-  font-size: 12px !important;
-  opacity: 0.6 !important;
-  margin-left: auto !important; /* 推到最右边 */
-}
-
-/* 9. 关闭按钮 (右上角的 X) */
-.wallet-adapter-modal-button-close {
-  background: rgba(255, 255, 255, 0.1) !important;
-  border-radius: 50% !important;
-  width: 32px !important;
-  height: 32px !important;
-  padding: 8px !important;
-  top: 16px !important;
-  right: 16px !important;
-  transition: all 0.2s !important;
-}
-
-.wallet-adapter-modal-button-close:hover {
-  background: rgba(239, 68, 68, 0.8) !important; /* 悬停变红 */
-  transform: rotate(90deg) !important;
-}
-
-.wallet-adapter-modal-button-close svg {
-  fill: #fff !important;
-  width: 14px !important;
-  height: 14px !important;
-}
-
-/* 10. 手机端底部折叠按钮 "Less options" */
-.wallet-adapter-modal-collapse-button svg {
-    display: none !important; /* 隐藏默认的难看箭头 */
-}
-.wallet-adapter-modal-collapse-button {
-    font-size: 12px !important;
-    color: #9ca3af !important;
-    margin-top: 8px !important;
-}
-
-/* ========================================================================
-  🔥 顶部导航栏按钮 - 图标化补丁 (Icon Style)
-   ======================================================================== */
-
-/* 1. 强制变成圆形按钮 */
-#mini-wallet-wrapper .wallet-adapter-button {
-  width: 36px !important;         /* 宽度固定 */
-  height: 36px !important;        /* 高度固定 */
-  padding: 0 !important;          /* 去掉内边距 */
-  border-radius: 50% !important;  /* 完美圆形 */
-  background-color: #1f2937 !important; /* 深灰色背景 (gray-800) */
-  border: 1px solid #4b5563 !important; /* 灰色边框 (gray-600) */
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
-}
-
-/* 2. 鼠标悬停效果 */
-#mini-wallet-wrapper .wallet-adapter-button:hover {
-  background-color: #374151 !important; /* hover 变浅一点 */
-  border-color: #9333ea !important;     /* hover 边框变紫 */
-}
-
-/* 3. 🚨 核心修正：隐藏库自带的默认图标，但允许我们自定义的 Logo 显示 */
-#mini-wallet-wrapper .wallet-adapter-button-start-icon,
-#mini-wallet-wrapper .wallet-adapter-button-end-icon {
-  display: none !important; /* 隐藏库自带的 */
-}
-
-/* ✅ 强制显示我们自己的 Logo */
-#mini-wallet-wrapper img.custom-wallet-logo {
-  display: block !important;
-  width: 24px !important;
-  height: 24px !important;
-  border-radius: 50% !important;
-}
-
-/* 4. 调整我们自定义 SVG 的位置 (未连接时) */
-#mini-wallet-wrapper svg {
-  width: 20px !important;
-  height: 20px !important;
-  color: #d1d5db !important;
-}
-
-/* ========================================================================
-   👆 交互手感优化：点击反馈 (Click Feedback)
-   ======================================================================== */
-
-/* 1. 定义通用点击效果：按下时缩小到 95% */
 .btn-click-effect {
   transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1); /* 极速过渡，0.1秒 */
   cursor: pointer;
@@ -299,4 +122,126 @@ body {
 /* 3. 针对某些圆形小按钮，缩放比例稍微大一点，手感更好 */
 .btn-click-effect-sm:active {
   transform: scale(0.90); /* 缩小 10% */
+}
+/* ========================================================================
+   🚀 Jupiter Unified Wallet - 核心强制覆盖补丁 (微调修复版)
+   ======================================================================== */
+
+/* 1. 强制控制弹窗最外层 (Overlay/Backdrop) */
+dialog {
+  position: fixed !important;
+  top: 0 !important; left: 0 !important;
+  width: 100vw !important; height: 100vh !important; height: 100dvh !important;
+  max-width: none !important; max-height: none !important;
+  margin: 0 !important; padding: 0 !important;
+  background-color: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: none !important; outline: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 2147483647 !important;
+}
+
+/* 2. 强制控制弹窗卡片 (Card Container) */
+dialog > div {
+  position: relative !important;
+  width: 90vw !important;
+  max-width: 380px !important;
+  max-height: 85vh !important;
+  margin: auto !important;
+  background-color: #18181b !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 20px 60px -10px rgba(0, 0, 0, 0.9) !important;
+  border-radius: 24px !important;
+  color: white !important;
+  display: flex !important;
+  flex-direction: column !important; 
+  overflow: hidden !important;
+}
+
+/* 3. 隐藏透明层 */
+dialog > div > div[class*="fixed"] {
+    position: static !important;
+}
+
+/* 4. 标题栏区域 (Header) - ✅ 已修改：左对齐 */
+dialog h2, dialog h3, dialog .title,
+dialog > div > div:first-child { 
+  color: #fff !important;
+  font-weight: 800 !important;
+  font-size: 20px !important; /* 字体稍微加大 */
+  
+  /* ✨ 修改点 1：左对齐 + 左侧留白 */
+  text-align: left !important; 
+  padding: 24px 0 10px 24px !important; 
+}
+
+dialog button[class*="ListOfWallets"] {
+    display: none !important;
+}
+
+/* B. 隐藏其他可能出现的文字小标题 (如 "Recently Used", "Installed") */
+/* 这里的选择器范围稍微大一点，确保把所有干扰视觉的小灰字都干掉 */
+dialog .text-xs, 
+dialog .text-sm,
+dialog span[class*="text-gray"] {
+    display: none !important;
+}
+
+/* 6. 单个钱包按钮美化 */
+dialog button {
+  background-color: #27272a !important; 
+  border: 1px solid transparent !important;
+  color: #e5e7eb !important;
+  border-radius: 16px !important;
+  margin-bottom: 8px !important; /* 减小一点按钮间距 */
+  height: 60px !important;
+  font-weight: 600 !important;
+  transition: transform 0.1s !important;
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  justify-content: flex-start !important; 
+  padding-left: 20px !important;
+}
+
+dialog button:active {
+  background-color: #3f3f46 !important;
+  transform: scale(0.98) !important;
+}
+
+/* 7. 关闭按钮 (右上角 X) - ✅ 已修改：强制正圆 */
+dialog > div > div > button {
+    position: absolute !important;
+    top: 20px !important;
+    right: 20px !important;
+    
+    /* ✨ 修改点 2：强制宽高相等，防止变椭圆 */
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important; /* 关键：防止被挤压 */
+    
+    background-color: #27272a !important;
+    border-radius: 50% !important; /* 完美圆形 */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+}
+
+/* 📱 移动端专属补丁 */
+@media (max-width: 640px) {
+  dialog {
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+  }
+  
+  dialog > div {
+    max-width: 90vw !important;
+    margin: auto !important;
+    border-radius: 24px !important;
+  }
 }
