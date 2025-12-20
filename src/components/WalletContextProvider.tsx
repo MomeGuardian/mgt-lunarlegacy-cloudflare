@@ -1,18 +1,17 @@
 "use client";
 
 import { FC, ReactNode, useMemo } from "react";
-import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
-import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
+// 保留 ConnectionProvider 用于连接你的高速节点
+import { ConnectionProvider } from "@solana/wallet-adapter-react";
+// 引入 Jupiter 的 Unified 组件
+import { UnifiedWalletProvider } from "@jup-ag/wallet-adapter";
 import {
     PhantomWalletAdapter,
     SolflareWalletAdapter,
-    // 我们不需要专门引入 OKX Adapter，因为它会自动注入到 standard list 里
-    // 或者它会伪装成 Phantom，这在移动端兼容性最好
 } from "@solana/wallet-adapter-wallets";
-import "@solana/wallet-adapter-react-ui/styles.css";
 
 const WalletContextProvider: FC<{ children: ReactNode }> = ({ children }) => {
-    // ✅ 保持你最新的 Cloudflare Worker 高速节点
+    // ✅ 保持你原本的 Cloudflare Worker 高速节点
     const endpoint = "https://mgt-lunarlegacy.2824889114.workers.dev";
 
     const wallets = useMemo(
@@ -23,23 +22,29 @@ const WalletContextProvider: FC<{ children: ReactNode }> = ({ children }) => {
         []
     );
 
-    const onError = (error: any) => {
-        console.error("Wallet Error:", error);
-    };
-
     return (
+        // 1. 最外层：网络连接层 (保持不变，确保 RPC 通信正常)
         <ConnectionProvider endpoint={endpoint} config={{ commitment: 'confirmed' }}>
-            <WalletProvider 
-                wallets={wallets} 
-                autoConnect={true} // ✅ 保持 true：连过一次后，下次自动连
-                onError={onError}
+            
+            {/* 2. 钱包交互层：使用 UnifiedWalletProvider 替换掉旧的 WalletProvider + Modal */}
+            <UnifiedWalletProvider
+                wallets={wallets}
+                config={{
+                    autoConnect: true, // 保持自动连接
+                    env: "mainnet-beta",
+                    metadata: {
+                        name: "MGT Lunar Legacy",
+                        description: "MGT Project",
+                        url: "https://mgt.lunarlegacy.io", // 建议替换为你网站的真实域名
+                        iconUrls: [], // 可选：填入你的 Logo URL
+                    },
+                    theme: "dark", // 深色模式，适配你的 UI
+                    lang: "zh",    // 设置中文
+                }}
             >
-                {/* 👇 这个 Provider 负责弹出那个“选择钱包”的黑框框 */}
-                <WalletModalProvider>
-                    {/* 直接显示内容，网页秒开，点击右上角按钮才会弹窗 */}
-                    {children}
-                </WalletModalProvider>
-            </WalletProvider>
+                {children}
+            </UnifiedWalletProvider>
+            
         </ConnectionProvider>
     );
 };
