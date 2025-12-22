@@ -655,10 +655,6 @@ export default function Home() {
         scalar: isMobile ? 0.8 : 1,       
       });
 
-      setTimeout(() => {
-          if (typeof fetchUserData === 'function') fetchUserData(); 
-      }, 3000);
-
     } catch (err: any) {
       console.error("Claim Error:", err);
       
