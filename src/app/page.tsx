@@ -849,17 +849,15 @@ export default function Home() {
         <AnimatePresence>
           {showRules && (
             <div className="fixed inset-0 z-[80] flex items-center justify-center px-4">
-              {/* 1. 背景层：纯黑高不透明度，无模糊，极速渲染 */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }} // 极快过渡
+                transition={{ duration: 0.15 }}
                 onClick={() => setShowRules(false)}
                 className="absolute inset-0 bg-black/95"
               />
-        
-              {/* 2. 弹窗主体：纯色背景，去除所有光效和阴影 */}
+
               <motion.div
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -867,7 +865,6 @@ export default function Home() {
                 transition={{ duration: 0.2, ease: "easeOut" }}
                 className="relative w-full max-w-lg bg-[#111] border border-gray-800 rounded-2xl overflow-hidden"
               >
-                {/* 顶部标题：黑底白字，极致对比度 */}
                 <div className="p-5 border-b border-gray-800 flex justify-between items-center bg-[#161616]">
                   <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
                     {t.rules_title}
@@ -880,23 +877,20 @@ export default function Home() {
                     ✕
                   </button>
                 </div>
-          
-                {/* 内容区：循环渲染，无复杂嵌套 */}
+
                 <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto overscroll-contain">
                   {[
                     { icon: "🚀", title: t.rule_1, desc: t.rule_1_desc, color: "text-blue-400" },
                     { icon: "⏳", title: t.rule_2, desc: t.rule_2_desc, color: "text-yellow-400" },
-                    { icon: "🩸", title: t.rule_3, desc: t.rule_3_desc, color: "text-red-400" }, // 红色保留警示色
+                    { icon: "🩸", title: t.rule_3, desc: t.rule_3_desc, color: "text-red-400" },
                     { icon: "💎", title: t.rule_4, desc: t.rule_4_desc, color: "text-cyan-400" },
                     { icon: "🏆", title: t.rule_5, desc: t.rule_5_desc, color: "text-purple-400" },
                   ].map((rule, idx) => (
                     <div key={idx} className="flex gap-3 items-start">
-                      {/* 图标：直接显示，去掉背景框 */}
                       <div className="shrink-0 text-xl pt-0.5 opacity-90">
                         {rule.icon}
                       </div>
                       <div>
-                        {/* 标题：使用文字颜色区分，而不是背景色 */}
                         <h4 className={`text-sm font-bold mb-0.5 ${rule.color}`}>
                             {rule.title}
                         </h4>
@@ -907,8 +901,6 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
-                
-                {/* 底部按钮：简单的白色按钮，点击反馈清晰 */}
                 <div className="p-5 border-t border-gray-800 bg-[#161616]">
                   <button
                     onClick={() => setShowRules(false)}
@@ -925,7 +917,6 @@ export default function Home() {
         <AnimatePresence>
           {showIntro && (
             <div className="fixed inset-0 z-[80] flex items-center justify-center px-4">
-              {/* 1. 背景层：纯黑高遮罩，无模糊 */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -934,8 +925,7 @@ export default function Home() {
                 onClick={() => setShowIntro(false)}
                 className="absolute inset-0 bg-black/95"
               />
-        
-              {/* 2. 弹窗主体：纯色背景，锐利边框 */}
+
               <motion.div
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -943,7 +933,6 @@ export default function Home() {
                 transition={{ duration: 0.15, ease: "easeOut" }}
                 className="relative w-full max-w-lg bg-[#111] border border-gray-800 rounded-2xl overflow-hidden"
               >
-                {/* 标题栏：极简布局 */}
                 <div className="p-5 border-b border-gray-800 flex justify-between items-center bg-[#161616]">
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <span className="text-xl">ℹ️</span> {t.intro_title}
@@ -955,11 +944,8 @@ export default function Home() {
                     ✕
                   </button>
                 </div>
-          
-                {/* 内容区 */}
+
                 <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto overscroll-contain">
-                  
-                  {/* 1. 核心愿景：去掉了复杂的蓝紫色渐变，改为深灰底色 */}
                   <div className="p-4 rounded-xl bg-[#161616] border border-gray-800">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="text-blue-400 font-bold text-sm flex items-center gap-2">
@@ -972,8 +958,7 @@ export default function Home() {
                       {t.intro_core_desc}
                     </p>
                   </div>
-          
-                  {/* 2. 生态落地：去掉了琥珀色光晕，保持统一风格 */}
+
                   <div className="p-4 rounded-xl bg-[#161616] border border-gray-800">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="text-amber-400 font-bold text-sm flex items-center gap-2">
@@ -985,7 +970,6 @@ export default function Home() {
                     <p className="text-xs text-gray-400 leading-relaxed text-justify mb-3">
                       {t.intro_safe_desc}
                     </p>
-                    {/* 标签组：朴素的线框风格 */}
                     <div className="flex gap-2">
                       <span className="text-[10px] text-gray-500 border border-gray-700 px-2 py-0.5 rounded">
                         {t.intro_tag_1}
@@ -995,8 +979,7 @@ export default function Home() {
                       </span>
                     </div>
                   </div>
-          
-                  {/* 3. CA 复制区：扁平化设计 */}
+
                   <div className="pt-2">
                     <p className="text-[10px] text-gray-600 font-bold uppercase tracking-wider mb-1.5 pl-1">
                       {t.intro_ca_label}
@@ -1023,34 +1006,25 @@ export default function Home() {
             </div>
           )}
         </AnimatePresence>
-          
-        {/* 主容器：直通模式 (Direct Mode) */}
+
         <div className="container mx-auto px-4 pt-16 md:pt-20 pb-10 text-center flex-grow"> 
             <motion.div variants={containerVariants} className="max-w-5xl mx-auto space-y-6 md:space-y-8">
-              
-              {/* 🟢 OKX 抢购卡片 (精致宽幅版) */}
               <div className="mt-4 md:mt-8 flex justify-center pb-2 w-full">
                 <button
                   onClick={openOkxDex}
                   className="w-full max-w-md md:max-w-5xl relative group cursor-pointer overflow-hidden rounded-2xl md:rounded-3xl shadow-lg hover:shadow-green-500/40 transition-all duration-300 transform md:hover:-translate-y-1"
                 >
-                    {/* 背景动画 */}
                     <div className="absolute inset-0 bg-gradient-to-r from-green-500 via-emerald-500 to-green-600 animate-gradient-x"></div>
                     <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors duration-300"></div>
-                    
-                    {/* 内容区域：高度回调到 md:py-6，更加紧凑 */}
                     <div className="relative px-6 py-4 md:py-6 flex flex-col items-center justify-center">
                         <div className="flex items-center gap-3 md:gap-4">
-                            {/* 图标：大小适中 */}
                             <span className="text-3xl md:text-4xl animate-bounce">💊</span>
                             
-                            {/* 主标题：字号 text-2xl/3xl，醒目但不过分 */}
                             <span className="text-xl md:text-3xl font-black text-white tracking-wide uppercase drop-shadow-md">
                                 {t.buy_btn_main}
                             </span>
                         </div>
-                        
-                        {/* 副标题 */}
+
                         <span className="text-green-100 text-xs md:text-sm font-bold mt-1 md:mt-2 bg-black/20 px-3 md:px-4 py-0.5 md:py-1 rounded-full backdrop-blur-sm">
                             {t.buy_btn_sub}
                         </span>
@@ -1058,14 +1032,12 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* 2. 财务数据 (双卡片布局) */}
               <motion.div 
                 variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { delay: 0.6, duration: 0.6 } } }}
                 initial="hidden" 
                 animate="visible"
                 className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6"
               >
-                {/* 💰 卡片 1：直推总业绩 */}
               <motion.div
                 onClick={() => setShowLeaderboardModal(true)}
                 whileHover={{ scale: 1.01, backgroundColor: "rgba(255,255,255,0.05)" }}
@@ -1097,13 +1069,11 @@ export default function Home() {
                 </div>
               </motion.div>
 
-              {/* 🎁 卡片 2：锁仓与释放 (核心功能) */}
               <motion.div
                 whileHover={{ scale: 1.02 }}
                 className="p-6 rounded-2xl border border-gray-800/50 bg-[#16171D]/50 backdrop-blur-sm flex items-center justify-between group hover:border-green-500/30 transition-all shadow-lg"
               >
                 <div className="flex flex-col gap-3">
-                  {/* 上半部分：总金库 */}
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <p className="text-gray-500 text-xs font-medium">{t.pending_reward}</p>
@@ -1121,7 +1091,6 @@ export default function Home() {
 
                   <div className="w-full h-px bg-gray-800/50"></div>
 
-                  {/* 下半部分：今日可领 (带倒计时) */}
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                         <p className={`text-sm font-bold flex items-center gap-1 ${liveClaimable > 0 ? 'text-green-400' : 'text-orange-400'}`}>
@@ -1153,7 +1122,6 @@ export default function Home() {
                   
                   <button
                     onClick={claimReward}
-                    // ⚠️ 逻辑优化：Loading 时禁用点击，但不要变成灰色，保持绿色
                     disabled={!connected || claiming} 
                     className={`
                       relative btn-click-effect overflow-hidden rounded-2xl font-bold transition-all shadow-lg flex flex-col items-center justify-center 
@@ -1161,28 +1129,23 @@ export default function Home() {
                       w-32 py-4 
                       /* 💻 电脑端：宽度 100% (跟随容器)，高度 py-7 */
                       md:w-full md:py-7
-                      
                       ${(!connected)
-                        ? "bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700" // 没连钱包显示灰色
-                        : "bg-gradient-to-br from-green-500 to-emerald-700 text-white shadow-green-500/20 border border-green-400/20" // 连了钱包（包括Loading）一直保持绿色
+                        ? "bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700"
+                        : "bg-gradient-to-br from-green-500 to-emerald-700 text-white shadow-green-500/20 border border-green-400/20"
                       }
                       
                       ${claiming ? "cursor-wait opacity-90" : "hover:scale-105 hover:shadow-green-500/40"}
                     `}
                   >
-                    {/* 🔄 Loading 遮罩层 (绝对定位，悬浮在文字上面) */}
                     {claiming && (
                       <div className="absolute inset-0 flex items-center justify-center bg-emerald-600/50 backdrop-blur-[2px] z-10">
                         <div className="w-6 h-6 border-2 border-white/90 border-t-transparent rounded-full animate-spin"></div>
                       </div>
                     )}
 
-                    {/* 📝 文字层 (Loading 时变透明，但依然占位，防止按钮变小) */}
                     <div className={`flex flex-col items-center transition-opacity duration-200 ${claiming ? "opacity-0" : "opacity-100"}`}>
-                      {/* 📱 手机 text-xl，💻 电脑 text-3xl */}
                       <span className="text-xl md:text-3xl mb-1 drop-shadow-md">{t.harvest_btn}</span>
                       
-                      {/* 副标题 */}
                       <span className="text-[10px] md:text-xs opacity-80 uppercase tracking-widest scale-90 md:scale-100">
                         {lockedReward > 0 ? t.click_harvest : t.wait_release}
                       </span>
@@ -1210,13 +1173,10 @@ export default function Home() {
               </motion.div>
               </motion.div>
 
-              {/* 3. K线图 */}
               <div className="text-xl font-bold flex items-center gap-2 md:hidden">
-                  {/* 👇 判断：如果是中文(zh)显示"实时价格"，否则显示"MGT Price" */}
                   {lang === 'zh' ? 'MGT 实时价格' : 'MGT Price'}: <PriceTicker />
               </div>
 
-              {/* K线图 */}
               <div className="hidden md:block w-full mt-6 mb-10">
                 <div className="text-sm text-gray-400 mb-2 flex items-center gap-2">
                   📊 实时走势 (Live Chart)
@@ -1229,7 +1189,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 4. 关系卡片 */}
               <motion.div 
                 variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { delay: 0.8, duration: 0.6 } } }}
                 initial="hidden" 
@@ -1262,7 +1221,6 @@ export default function Home() {
                     )}
                   </div>
 
-                  {/* 👥 直推人数卡片 */}
                   <motion.div
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -1275,7 +1233,6 @@ export default function Home() {
 
                     <div className="flex items-center gap-2 mb-2">
                       <p className="text-gray-400 text-sm font-medium">{t.my_referrals}</p>
-                        {/* 提示小图标 */}
                       <span className="bg-blue-500/20 text-blue-400 text-[10px] px-1.5 py-0.5 rounded">{t.click_to_view}</span>
                     </div>
 
@@ -1290,20 +1247,30 @@ export default function Home() {
                   <div className="flex flex-col items-center justify-center p-4 w-full">
                     <p className="text-gray-400 text-xs md:text-sm mb-3">{t.referral_link}</p>
                     <button
-                        onClick={() => {
-                          if (!connected) {
-                              toast.error("请先连接钱包");
-                              return;
-                          }
-                          const shareText = `${myLink}`;
-                          navigator.clipboard.writeText(shareText);
-                          toast.success(t.link_copied);
-                        }}
-                        disabled={!connected} 
-                        className="w-full md:w-auto px-6 py-2 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 rounded-full text-sm font-bold text-white shadow-lg transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {t.copy_link}
-                      </button>
+                      onClick={() => {
+                        if (!connected || !publicKey) {
+                          toast.error(lang === 'zh' ? "请先连接钱包" : "Connect wallet first");
+                          return;
+                        }
+                      
+                        const origin = (typeof window !== 'undefined' && window.location.origin && window.location.origin !== 'null') 
+                          ? window.location.origin 
+                          : 'https://mgt-token.company';
+                      
+                        const shareText = `${origin}?ref=${publicKey.toBase58()}`;
+                      
+                        navigator.clipboard.writeText(shareText)
+                          .then(() => toast.success(t.link_copied))
+                          .catch((err) => {
+                            console.error("复制失败:", err);
+                            toast.error("复制失败，请手动截图");
+                          });
+                      }}
+                      disabled={!connected} 
+                      className="w-full md:w-auto px-6 py-2 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 rounded-full text-sm font-bold text-white shadow-lg transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {t.copy_link}
+                    </button>
                   </div>
                 </div>
               </motion.div>
@@ -1311,7 +1278,6 @@ export default function Home() {
             </motion.div>
         </div>
 
-        {/* Footer */}
         <footer className="w-full py-6 text-center text-gray-600 text-xs md:text-sm font-mono border-t border-white/5 bg-black/40 backdrop-blur-sm z-10">
             <div className="flex flex-col items-center justify-center space-y-1">
             <p className="hover:text-gray-400 transition-colors cursor-default">
@@ -1323,7 +1289,6 @@ export default function Home() {
             </div>
         </footer>
 
-        {/* 📜 直推名单弹窗 */}
         <AnimatePresence>
           {showRefListModal && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setShowRefListModal(false)}>
@@ -1334,7 +1299,6 @@ export default function Home() {
                 onClick={(e) => e.stopPropagation()} 
                 className="w-full max-w-md bg-[#16171D] border border-gray-800 rounded-2xl overflow-hidden shadow-2xl"
               >
-                {/* 标题栏 */}
                 <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-white/5">
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     👥 {t.ref_modal_title} ({refList.length})
@@ -1344,7 +1308,6 @@ export default function Home() {
                   </button>
                 </div>
 
-                {/* 列表内容区 */}
                 <div className="p-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
                   {loadingRefList ? (
                     <div className="text-center py-8 text-gray-500">
@@ -1364,7 +1327,6 @@ export default function Home() {
                             </span>
                           </div>
                           
-                          {/* 复制按钮 */}
                           <button 
                             onClick={() => {
                               navigator.clipboard.writeText(wallet);
@@ -1385,7 +1347,6 @@ export default function Home() {
                   )}
                 </div>
                 
-                {/* 底部按钮 */}
                 <div className="p-4 border-t border-gray-800 bg-black/20">
                     <button 
                         onClick={() => setShowRefListModal(false)}
@@ -1399,7 +1360,6 @@ export default function Home() {
           )}
         </AnimatePresence>
 
-        {/* 🏆 排行榜弹窗 (复用 Leaderboard 组件) */}
         <AnimatePresence>
           {showLeaderboardModal && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4" onClick={() => setShowLeaderboardModal(false)}>
@@ -1410,16 +1370,13 @@ export default function Home() {
                 onClick={(e) => e.stopPropagation()} 
                 className="w-full max-w-4xl bg-[#16171D] border border-gray-800 rounded-3xl overflow-hidden shadow-[0_0_50px_-10px_rgba(168,85,247,0.2)] flex flex-col h-[85vh] relative"
               >
-                {/* ✨ 背景氛围光 (新增) */}
                 <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 rounded-full blur-[80px] -z-10 pointer-events-none"></div>
                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px] -z-10 pointer-events-none"></div>
 
-                {/* 弹窗头部 */}
                 <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-white/[0.02]">
                   <div className="flex items-center gap-3">
                     <span className="text-3xl filter drop-shadow-md">📊</span>
                     <div>
-                        {/* 🌟 标题升级：高级流光渐变 */}
                         <h3 className="text-xl font-black bg-clip-text text-transparent bg-[linear-gradient(135deg,#e2e8f0_0%,#a78bfa_50%,#f472b6_100%)] drop-shadow-[0_2px_10px_rgba(167,139,250,0.5)] tracking-wide">
                             {t.modal_lb_title}
                         </h3>
@@ -1431,12 +1388,10 @@ export default function Home() {
                   </button>
                 </div>
 
-                {/* 内容区域 - 放入 Leaderboard 组件 */}
                 <div className="flex-1 overflow-hidden bg-[#0b0c10]/50 relative">
                     <Leaderboard currentUserWallet={publicKey?.toBase58()} />
                 </div>
                 
-                {/* 底部关闭栏 */}
                 <div className="p-5 border-t border-gray-800 bg-[#16171D] text-center z-10">
                     <p className="text-xs text-gray-500 mb-3 font-medium tracking-wide">
                         {t.modal_lb_tip}
