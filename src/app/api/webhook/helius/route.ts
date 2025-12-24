@@ -36,22 +36,24 @@ export async function POST(request: Request) {
 
     const validTxsRaw = body.filter((tx: any) => !tx.transactionError);
     if (validTxsRaw.length === 0) return NextResponse.json({ message: 'No valid tx' });
+
     const signatures = validTxsRaw.map((tx: any) => tx.signature);
     const { data: existingRows } = await supabase
         .from('processed_txs')
         .select('signature')
         .in('signature', signatures);
+    
     const existingSet = new Set(existingRows?.map((row: any) => row.signature) || []);
     const newSignatures = signatures.filter((s: string) => !existingSet.has(s));
 
     if (newSignatures.length === 0) {
-        console.log("⚠️ 收到重复推送，所有交易均已处理过，跳过。");
-        return NextResponse.json({ message: 'All duplicates skipped' });
+        console.log("⚠️ 所有交易已处理，跳过。");
+        return NextResponse.json({ message: 'Skipped' });
     }
 
     await supabase.from('processed_txs').insert(
         newSignatures.map((s: string) => ({ signature: s }))
-    ).select().maybeSingle().catch(() => {}); 
+    ).select().maybeSingle().catch(() => {});
 
     const currentPrice = await getMgtPrice();
     const walletNetChanges: Record<string, number> = {};
@@ -59,12 +61,9 @@ export async function POST(request: Request) {
 
     for (const tx of validTxsRaw) {
       if (existingSet.has(tx.signature)) continue;
-
       const signature = tx.signature;
       const transfers = tx.tokenTransfers || [];
       const mgtTransfers = transfers.filter((t: any) => t.mint === MGT_MINT);
-      
-      if (mgtTransfers.length === 0) continue;
       
       for (const t of mgtTransfers) {
           const amount = parseFloat(t.tokenAmount);
@@ -79,9 +78,11 @@ export async function POST(request: Request) {
       }
     }
 
-    const processingPromises = Object.entries(walletNetChanges).map(async ([wallet, netAmount]) => {
-        if (Math.abs(netAmount * currentPrice) < 0.01) return;
-        
+    const wallets = Object.entries(walletNetChanges);
+    console.log(`处理队列: ${wallets.length} 个钱包`);
+
+    for (const [wallet, netAmount] of wallets) {
+        if (Math.abs(netAmount * currentPrice) < 0.01) continue;
         try {
             const { data: user } = await supabase
                 .from('users')
@@ -89,20 +90,21 @@ export async function POST(request: Request) {
                 .eq('wallet', wallet)
                 .single();
 
-            if (!user) return; 
-            
+            if (!user) continue; 
             const currentNet = user.net_mgt_holding || 0;
             const currentMax = user.max_mgt_holding || 0;
             const newNet = currentNet + netAmount;
             const signature = walletLastSignature[wallet]; 
-
             const updateData = { 
                 net_mgt_holding: newNet,
                 max_mgt_holding: newNet > currentMax ? newNet : currentMax
             };
-            
             const { error: updateError } = await supabase.from('users').update(updateData).eq('wallet', wallet);
-            if (updateError) throw updateError;
+            if (updateError) {
+                console.error(`更新用户 ${wallet.slice(0,4)} 失败:`, updateError);
+                continue;
+            }
+
             if (netAmount > 0) {
                 if (newNet > currentMax) {
                     const amountPushingCeiling = newNet - currentMax;
@@ -119,37 +121,36 @@ export async function POST(request: Request) {
                             usdt_value: usdValue,
                             status: 'processed'
                         });
-                        await Promise.all([
-                            supabase.rpc('increment_team_volume', { wallet_address: user.referrer, amount_to_add: usdValue }),
-                            supabase.rpc('increment_pending_reward', { wallet_address: user.referrer, reward_to_add: reward })
-                        ]);
+
+                        await supabase.rpc('increment_team_volume', { wallet_address: user.referrer, amount_to_add: usdValue });
+                        await supabase.rpc('increment_pending_reward', { wallet_address: user.referrer, reward_to_add: reward });
                         
-                        console.log(`📈 [奖励成功] 上级 ${user.referrer.slice(0,4)} 获得 ${reward.toFixed(4)} MGT (来源: ${wallet.slice(0,4)})`);
+                        console.log(`📈 [奖励成功] ${user.referrer.slice(0,4)} +${reward.toFixed(2)}`);
                     }
                 } else {
-                    console.log(`📉 [填坑中] 用户 ${wallet.slice(0,4)} 买入 ${netAmount}，但未破历史新高，无奖励`);
+                    console.log(`📉 [填坑] ${wallet.slice(0,4)} 未破新高`);
                 }
             } 
             else if (netAmount < 0 && user.referrer) {
                 const soldAmount = Math.abs(netAmount);
                 const penalty = soldAmount * 0.05;
-                console.log(`📉 [触发惩罚] 用户抛售，扣除上级 ${user.referrer.slice(0,4)} 锁定奖励: ${penalty.toFixed(4)}`);
+                console.log(`📉 [惩罚] ${user.referrer.slice(0,4)} -${penalty.toFixed(2)}`);
                 
                 await supabase.rpc('decrement_locked_reward', {
                     wallet_address: user.referrer,
                     amount_to_remove: penalty
                 });
             }
-        } catch (innerErr) {
-            console.error(`处理钱包 ${wallet} 业务逻辑出错:`, innerErr);
-        }
-    });
 
-    await Promise.allSettled(processingPromises);
+        } catch (innerErr) {
+            console.error(`处理钱包 ${wallet} 出错:`, innerErr);
+        }
+    }
+
     return NextResponse.json({ success: true });
 
   } catch (err: any) {
-    console.error('Webhook Fatal Error:', err);
-    return NextResponse.json({ success: true, error: err.message }); 
+    console.error('Webhook Error:', err);
+    return NextResponse.json({ success: true, error: err.message });
   }
 }
