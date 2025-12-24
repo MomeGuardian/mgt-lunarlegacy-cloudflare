@@ -14,6 +14,7 @@ import bs58 from 'bs58';
 import confetti from 'canvas-confetti';
 import PriceTicker from '@/components/PriceTicker';
 import dynamic from 'next/dynamic';
+import { PublicKey } from '@solana/web3.js';
 
 const translations = {
   zh: {
@@ -445,22 +446,53 @@ export default function Home() {
     if (connected && publicKey) bindReferral();
   }, [connected, publicKey, bindReferral]);
 
-  const handleManualBind = async () => {
+const handleManualBind = async () => {
     if (!publicKey || !signMessage) return;
-    if (!manualReferrer || manualReferrer.length < 32) {
-        toast.error("无效地址");
-        return;
-    }
-    if (manualReferrer === publicKey.toBase58()) {
-        toast.error("不能绑定自己");
+    if (!manualReferrer) {
+        toast.error(lang === 'zh' ? "请输入地址" : "Enter address");
         return;
     }
 
     try {
+        new PublicKey(manualReferrer);
+    } catch (e) {
+        toast.error(lang === 'zh' ? "无效的 Solana 钱包地址" : "Invalid Solana address");
+        return;
+    }
+
+    if (manualReferrer === publicKey.toBase58()) {
+        toast.error(lang === 'zh' ? "不能绑定自己" : "Cannot bind yourself");
+        return;
+    }
+
+    try {
+        setIsBinding(true);
+        const { data: existUser, error: queryError } = await supabase
+            .from('users')
+            .select('wallet')
+            .eq('wallet', manualReferrer)
+            .maybeSingle();
+
+        if (queryError) {
+            console.error("查询上级失败:", queryError);
+            toast.error("网络查询失败，请重试");
+            setIsBinding(false);
+            return;
+        }
+
+        if (!existUser) {
+            toast.error(lang === 'zh' 
+                ? "该地址未注册，无法绑定！" 
+                : "Referrer not found / not registered!");
+            setIsBinding(false);
+            return;
+        }
+
         const messageContent = `Bind referrer ${manualReferrer} to ${publicKey.toBase58()}`;
         const message = new TextEncoder().encode(messageContent);
         const signatureBytes = await signMessage(message);
         const signatureStr = bs58.encode(signatureBytes);
+        
         const res = await fetch('/api/referral/bind', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -474,8 +506,10 @@ export default function Home() {
 
         const result = await res.json();
         if (!res.ok) throw new Error(result.error);
+        
         setInviter(manualReferrer);
         setIsBinding(false);
+        
         toast.success(t.success_manual_bind, {
             position: "top-center",
             style: {
@@ -488,9 +522,12 @@ export default function Home() {
                 fontWeight: 'bold',
             }
         });
+
     } catch (err: any) {
         console.error("手动绑定失败", err);
         toast.error(err.message || "绑定失败");
+    } finally {
+        setIsBinding(false);
     }
   };
 
@@ -536,26 +573,44 @@ export default function Home() {
     }
   }, [publicKey, connected]);
 
-  useEffect(() => {
+useEffect(() => {
     if (!connected || !publicKey) return;
+
+    const fetchLatestData = async () => {
+        const { count } = await supabase
+            .from("users")
+            .select("*", { count: "exact", head: true })
+            .eq("referrer", publicKey.toBase58());
+        
+        if (count !== null) {
+            console.log("⚡️ 刷新直推人数:", count);
+            setMyRefs(count);
+        }
+
+        const { data: userData } = await supabase
+            .from("users")
+            .select("locked_reward, team_volume")
+            .eq("wallet", publicKey.toBase58())
+            .single();
+            
+        if (userData) {
+            setLockedReward(userData.locked_reward || 0);
+            setTeamVolume(userData.team_volume || 0);
+        }
+    };
 
     const channel = supabase
       .channel('realtime_users_updates')
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'users',
-          filter: `wallet=eq.${publicKey.toBase58()}`
         },
         (payload) => {
-          const newUser = payload.new as any;
-          if (newUser) {
-            console.log("⚡️ 收到实时更新:", newUser);
-            setLockedReward(newUser.locked_reward || 0); 
-            setTeamVolume(newUser.team_volume || 0);
-          }
+          console.log("⚡️ 数据库有变动，正在刷新...", payload);
+          fetchLatestData();
         }
       )
       .subscribe();
