@@ -6,7 +6,6 @@ export const runtime = 'edge';
 const MGT_MINT = "59eXaVJNG441QW54NTmpeDpXEzkuaRjSLm8M6N4Gpump";
 const FALLBACK_PRICE = 0.00013; 
 
-// 1. 查价格 (带超时保护)
 async function getMgtPrice() {
   try {
     const controller = new AbortController();
@@ -16,7 +15,6 @@ async function getMgtPrice() {
     const data = await res.json();
     return parseFloat(data.pairs?.[0]?.priceUsd || FALLBACK_PRICE);
   } catch (error) {
-    console.log("⚠️ 价格查询超时，使用默认价格");
     return FALLBACK_PRICE;
   }
 }
@@ -31,13 +29,11 @@ export async function POST(request: Request) {
     const body = await request.json();
     if (!body || !Array.isArray(body)) return NextResponse.json({ message: 'No tx' });
 
-    // 初始化 Supabase
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // 2. 批量去重 (只做一次数据库查询)
     const validTxsRaw = body.filter((tx: any) => !tx.transactionError);
     if (validTxsRaw.length === 0) return NextResponse.json({ message: 'No valid tx' });
 
@@ -51,20 +47,18 @@ export async function POST(request: Request) {
     const newSignatures = signatures.filter((s: string) => !existingSet.has(s));
 
     if (newSignatures.length === 0) {
-        return NextResponse.json({ message: 'Skipped: All Duplicates' });
+        console.log("⚠️ 所有交易已处理，跳过。");
+        return NextResponse.json({ message: 'Skipped' });
     }
 
-    // 写入去重锁 (一次性写入，忽略冲突)
     await supabase.from('processed_txs').insert(
         newSignatures.map((s: string) => ({ signature: s }))
     ).select().maybeSingle().catch(() => {});
 
-    // 3. 准备数据包
     const currentPrice = await getMgtPrice();
     const walletNetChanges: Record<string, number> = {};
     const walletLastSignature: Record<string, string> = {};
 
-    // 纯内存计算，极快
     for (const tx of validTxsRaw) {
       if (existingSet.has(tx.signature)) continue;
       const signature = tx.signature;
@@ -84,34 +78,79 @@ export async function POST(request: Request) {
       }
     }
 
-    const batchPayload = Object.entries(walletNetChanges)
-        .filter(([_, amount]) => Math.abs(amount * currentPrice) >= 0.01)
-        .map(([wallet, amount]) => ({
-            wallet: wallet,
-            amount: amount,
-            signature: walletLastSignature[wallet]
-        }));
+    const wallets = Object.entries(walletNetChanges);
+    console.log(`处理队列: ${wallets.length} 个钱包`);
 
-    if (batchPayload.length === 0) {
-        return NextResponse.json({ message: 'No value changes' });
+    for (const [wallet, netAmount] of wallets) {
+        if (Math.abs(netAmount * currentPrice) < 0.01) continue;
+        try {
+            const { data: user } = await supabase
+                .from('users')
+                .select('referrer, net_mgt_holding, max_mgt_holding')
+                .eq('wallet', wallet)
+                .single();
+
+            if (!user) continue; 
+            const currentNet = user.net_mgt_holding || 0;
+            const currentMax = user.max_mgt_holding || 0;
+            const newNet = currentNet + netAmount;
+            const signature = walletLastSignature[wallet]; 
+            const updateData = { 
+                net_mgt_holding: newNet,
+                max_mgt_holding: newNet > currentMax ? newNet : currentMax
+            };
+            const { error: updateError } = await supabase.from('users').update(updateData).eq('wallet', wallet);
+            if (updateError) {
+                console.error(`更新用户 ${wallet.slice(0,4)} 失败:`, updateError);
+                continue;
+            }
+
+            if (netAmount > 0) {
+                if (newNet > currentMax) {
+                    const amountPushingCeiling = newNet - currentMax;
+                    const reward = amountPushingCeiling * 0.05;
+                    const usdValue = amountPushingCeiling * currentPrice;
+
+                    if (user.referrer && usdValue >= 0.1) {
+                        await supabase.from('transactions').insert({
+                            signature,
+                            buyer: wallet,
+                            referrer: user.referrer,
+                            token_amount: amountPushingCeiling,
+                            reward_amount: reward,
+                            usdt_value: usdValue,
+                            status: 'processed'
+                        });
+
+                        await supabase.rpc('increment_team_volume', { wallet_address: user.referrer, amount_to_add: usdValue });
+                        await supabase.rpc('increment_pending_reward', { wallet_address: user.referrer, reward_to_add: reward });
+                        
+                        console.log(`📈 [奖励成功] ${user.referrer.slice(0,4)} +${reward.toFixed(2)}`);
+                    }
+                } else {
+                    console.log(`📉 [填坑] ${wallet.slice(0,4)} 未破新高`);
+                }
+            } 
+            else if (netAmount < 0 && user.referrer) {
+                const soldAmount = Math.abs(netAmount);
+                const penalty = soldAmount * 0.05;
+                console.log(`📉 [惩罚] ${user.referrer.slice(0,4)} -${penalty.toFixed(2)}`);
+                
+                await supabase.rpc('decrement_locked_reward', {
+                    wallet_address: user.referrer,
+                    amount_to_remove: penalty
+                });
+            }
+
+        } catch (innerErr) {
+            console.error(`处理钱包 ${wallet} 出错:`, innerErr);
+        }
     }
 
-    // 4. 发射！(调用数据库超级函数)
-    const { error: rpcError } = await supabase.rpc('process_helius_batch_v2', {
-        updates: batchPayload,
-        current_price: currentPrice
-    });
-
-    if (rpcError) {
-        console.error("RPC Error:", rpcError);
-        return NextResponse.json({ error: rpcError.message }, { status: 500 });
-    }
-
-    console.log(`✅ 成功处理 ${batchPayload.length} 个钱包变动`);
     return NextResponse.json({ success: true });
 
   } catch (err: any) {
-    console.error('Fatal:', err.message);
+    console.error('Webhook Error:', err);
     return NextResponse.json({ success: true, error: err.message });
   }
 }
