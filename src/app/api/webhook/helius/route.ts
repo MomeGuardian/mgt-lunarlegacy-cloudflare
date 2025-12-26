@@ -21,8 +21,10 @@ async function getMgtPrice() {
 
 export async function POST(request: Request) {
   console.log("👉 [Step 0] Webhook 收到请求...");
-  
+
   try {
+    const pricePromise = getMgtPrice(); 
+
     const debugKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     console.log(`🔍 [Debug] Key开头: ${debugKey ? debugKey.slice(0, 5) : 'MISSING'}...`);
 
@@ -35,6 +37,7 @@ export async function POST(request: Request) {
     if (!body || !Array.isArray(body)) return NextResponse.json({ message: 'No tx' });
 
     console.log(`👉 [Step 1] 解析到 ${body.length} 条数据`);
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -67,18 +70,17 @@ export async function POST(request: Request) {
         return NextResponse.json({ message: 'Skipped: All Duplicates' });
     }
 
-    console.log(`👉 [Step 2.5] 写入 ${newSignatures.length} 个新锁...`);
-    const { error: insertError } = await supabase
+    console.log(`👉 [Step 2.5] 后台写入 ${newSignatures.length} 个新锁 (不等待)...`);
+    const lockPromise = supabase
         .from('processed_txs')
         .insert(newSignatures.map((s: string) => ({ signature: s })));
-    
-    if (insertError) {
-        console.log("⚠️ [Info] 写入锁可能有冲突 (安全跳过):", insertError.message);
-    }
 
-    const currentPrice = await getMgtPrice();
+    const currentPrice = await pricePromise;
+    console.log(`✅ [Step 3] 获取币价: ${currentPrice}`);
+
     const walletNetChanges: Record<string, number> = {};
     const walletLastSignature: Record<string, string> = {};
+
     console.log("👉 [Step 4] 内存计算...");
     for (const tx of validTxsRaw) {
       if (existingSet.has(tx.signature)) continue;
@@ -113,11 +115,12 @@ export async function POST(request: Request) {
     }
 
     console.log(`👉 [Step 5] 调用 RPC 处理 ${batchPayload.length} 个钱包...`);
-    
     const { error: rpcError } = await supabase.rpc('process_helius_batch_v2', {
         updates: batchPayload,
         current_price: currentPrice
     });
+
+    await lockPromise.catch(err => console.log("⚠️ 锁写入轻微冲突(安全):", err.message));
 
     if (rpcError) {
         console.error("🔴 RPC Error:", rpcError);
