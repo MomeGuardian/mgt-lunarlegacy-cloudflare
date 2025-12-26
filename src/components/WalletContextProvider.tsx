@@ -22,13 +22,6 @@ const WalletContextProvider: FC<{ children: ReactNode }> = ({ children }) => {
                         url: "https://mgt.lunarlegacy.io",
                         iconUrls: ["https://mgt.lunarlegacy.io/favicon.ico"], 
                     },
-                    notificationCallback: {
-                        onConnect: (props) => console.log('Connected', props),
-                        onDisconnect: (props) => console.log('Disconnected', props),
-                    },
-                    walletlistExplanation: {
-                        href: 'https://station.jup.ag/docs/additional-topics/wallet-list',
-                    },
                     theme: "dark",
                     lang: "zh",
                 }}
