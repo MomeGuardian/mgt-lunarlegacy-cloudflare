@@ -27,10 +27,15 @@ export async function POST(request: Request) {
   console.log("👉 [Step 0] Webhook 收到请求，开始处理...");
   
   try {
-    const { searchParams } = new URL(request.url);
-    if (searchParams.get('secret') !== process.env.HELIUS_WEBHOOK_SECRET) {
-      console.error("🔴 [Error] Secret 不匹配");
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const debugUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const debugKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    console.log(`🔍 [Debug环境] Supabase URL: ${debugUrl}`);
+    console.log(`🔍 [Debug环境] Key 开头: ${debugKey ? debugKey.slice(0, 5) : 'UNDEFINED'}...`);
+    console.log(`🔍 [Debug环境] Key 长度: ${debugKey ? debugKey.length : 0}`);
+
+    if (!debugUrl || !debugKey) {
+         throw new Error("环境变量缺失！无法连接数据库！");
     }
 
     const body = await request.json();
@@ -132,3 +137,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, error: err.message });
   }
 }
+
